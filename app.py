@@ -12,8 +12,8 @@ def parse_time(time_str):
     if not time_str:
         return None
     try:
-        h, m = time_str.split(':')
-        return time(int(h), int(m))
+        parts = time_str.split(':')  # HH:MM または HH:MM:SS に対応
+        return time(int(parts[0]), int(parts[1]))
     except Exception:
         return None
 
@@ -21,6 +21,8 @@ def parse_time(time_str):
 def find_column(ws, header_row, label):
     """ヘッダー行からラベルに一致する列を返す（部分一致対応）。見つからなければ None。"""
     label = label.strip()
+    if not label:
+        return None  # 空ラベルは常に不一致扱い
     for cell in ws[header_row]:
         if cell.value:
             cell_val = str(cell.value).strip()
@@ -76,8 +78,13 @@ def write_excel():
             weekday_times[i] = {'start': start, 'end': end, 'break': brk}
 
     today = date.today()
-    year  = int(request.form.get('year',  today.year))
-    month = int(request.form.get('month', today.month))
+    try:
+        year  = int(request.form.get('year',  today.year))
+        month = int(request.form.get('month', today.month))
+        if not (2000 <= year <= 2099) or not (1 <= month <= 12):
+            raise ValueError
+    except (ValueError, TypeError):
+        return jsonify({'error': '年月の値が正しくありません（年：2000〜2099、月：1〜12）'}), 400
     _, last_day = calendar.monthrange(year, month)
 
     # 祝日取得
@@ -135,24 +142,36 @@ def write_excel():
 
         if weekday >= 5:
             pass  # 土日：空欄
+        elif day in time_exceptions:
+            # 時間例外が最優先（祝日・有給より上書き可能）
+            t = time_exceptions[day]
+            ws[f'{col_start}{row}'].value = t['start']
+            ws[f'{col_start}{row}'].number_format = 'h:mm'
+            ws[f'{col_end}{row}'].value = t['end']
+            ws[f'{col_end}{row}'].number_format = 'h:mm'
+            ws[f'{col_break}{row}'].value = t['break']
+            ws[f'{col_break}{row}'].number_format = 'h:mm'
+            ws[f'{col_note}{row}'].value = note_exceptions[day] if day in note_exceptions else note_workday
         elif day in holidays:
             ws[f'{col_note}{row}'].value = '祝日'
         elif day in paid_leave:
             ws[f'{col_note}{row}'].value = '私用により、休暇'
-        elif day in time_exceptions or weekday in weekday_times:
-            t = time_exceptions.get(day) or weekday_times.get(weekday)
-            if t:
-                ws[f'{col_start}{row}'].value = t['start']
-                ws[f'{col_start}{row}'].number_format = 'h:mm'
-                ws[f'{col_end}{row}'].value = t['end']
-                ws[f'{col_end}{row}'].number_format = 'h:mm'
-                ws[f'{col_break}{row}'].value = t['break']
-                ws[f'{col_break}{row}'].number_format = 'h:mm'
-                ws[f'{col_note}{row}'].value = note_exceptions[day] if day in note_exceptions else note_workday
+        elif weekday in weekday_times:
+            t = weekday_times[weekday]
+            ws[f'{col_start}{row}'].value = t['start']
+            ws[f'{col_start}{row}'].number_format = 'h:mm'
+            ws[f'{col_end}{row}'].value = t['end']
+            ws[f'{col_end}{row}'].number_format = 'h:mm'
+            ws[f'{col_break}{row}'].value = t['break']
+            ws[f'{col_break}{row}'].number_format = 'h:mm'
+            ws[f'{col_note}{row}'].value = note_exceptions[day] if day in note_exceptions else note_workday
 
     # カーソルをA1に設定
-    ws.sheet_view.selection[0].activeCell = 'A1'
-    ws.sheet_view.selection[0].sqref = 'A1'
+    try:
+        ws.sheet_view.selection[0].activeCell = 'A1'
+        ws.sheet_view.selection[0].sqref = 'A1'
+    except (IndexError, AttributeError):
+        pass
 
     buf = io.BytesIO()
     wb.save(buf)

@@ -346,6 +346,15 @@
 
     .ex-cal-close:hover { background: #e5e7eb; }
 
+    .cal-day.holiday-selectable {
+      color: #e53e3e;
+      background: #fff5f5;
+      cursor: pointer;
+      font-size: 0.78rem;
+    }
+
+    .cal-day.holiday-selectable:hover { background: #fee2e2; }
+
     .time-exc-section {
       margin-top: 14px;
       padding-top: 14px;
@@ -556,31 +565,31 @@
           <tr>
             <td>月曜日</td>
             <td><input type="time" name="monday_start" value="09:00" required></td>
-            <td><input type="time" name="monday_end" value="18:00" required></td>
+            <td><input type="time" name="monday_end" value="17:30" required></td>
             <td><input type="time" name="monday_break" value="01:00" required></td>
           </tr>
           <tr>
             <td>火曜日</td>
             <td><input type="time" name="tuesday_start" value="09:00" required></td>
-            <td><input type="time" name="tuesday_end" value="18:00" required></td>
+            <td><input type="time" name="tuesday_end" value="17:30" required></td>
             <td><input type="time" name="tuesday_break" value="01:00" required></td>
           </tr>
           <tr>
             <td>水曜日</td>
             <td><input type="time" name="wednesday_start" value="09:00" required></td>
-            <td><input type="time" name="wednesday_end" value="18:00" required></td>
+            <td><input type="time" name="wednesday_end" value="17:30" required></td>
             <td><input type="time" name="wednesday_break" value="01:00" required></td>
           </tr>
           <tr>
             <td>木曜日</td>
             <td><input type="time" name="thursday_start" value="09:00" required></td>
-            <td><input type="time" name="thursday_end" value="18:00" required></td>
+            <td><input type="time" name="thursday_end" value="17:30" required></td>
             <td><input type="time" name="thursday_break" value="01:00" required></td>
           </tr>
           <tr>
             <td>金曜日</td>
             <td><input type="time" name="friday_start" value="09:00" required></td>
-            <td><input type="time" name="friday_end" value="18:00" required></td>
+            <td><input type="time" name="friday_end" value="17:30" required></td>
             <td><input type="time" name="friday_break" value="01:00" required></td>
           </tr>
         </tbody>
@@ -860,8 +869,12 @@
       let attrs = '';
       if (isSun)      cls += ' sunday';
       else if (isSat) cls += ' saturday';
-      else if (isHoliday) { cls += ' holiday'; attrs = ` title="${holidays[String(day)]}"` ; }
-      else            attrs = ` onclick="selectExDay(${day})" style="cursor:pointer"`;
+      else if (isHoliday) {
+        cls += ' holiday-selectable';
+        attrs = ` onclick="selectExDay(${day})" title="${holidays[String(day)]}（選択可）"`;
+      } else {
+        attrs = ` onclick="selectExDay(${day})"`;
+      }
       const label = isHoliday
         ? `<div style="font-size:0.72rem;line-height:1.2">${day}<br>${holidays[String(day)]}</div>`
         : day;
@@ -892,13 +905,20 @@
       if (cb.checked) {
         fetchHolidays().then(buildCalendar);
       }
-      // 全例外行の日付ボタン表示を更新（月表示を現在の月に合わせる）
+      // 全例外行の日付ボタン表示を更新（月変更後に存在しない日付の行は削除）
       const month = getMonth();
+      const year2 = getYear();
+      const lastDay = new Date(year2, month, 0).getDate();
       document.querySelectorAll('.exception-row, .time-exception-row').forEach(row => {
         const hidden = row.querySelector('.ex-day-input');
         const btn    = row.querySelector('.ex-date-btn');
         if (hidden && hidden.value) {
-          btn.textContent = `${month}月${hidden.value}日`;
+          const d = parseInt(hidden.value);
+          if (d > lastDay) {
+            row.remove();  // 月末を超えた例外行を削除
+          } else {
+            btn.textContent = `${month}月${d}日`;
+          }
         } else {
           btn.textContent = '日付を選択';
           btn.classList.remove('selected');
