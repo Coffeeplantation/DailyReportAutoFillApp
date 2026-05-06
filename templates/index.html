@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>日報自動入力アプリ</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif;
+      background: #f0f2f5;
+      color: #333;
+      min-height: 100vh;
+      padding: 24px 16px;
+    }
+
+    .app {
+      max-width: 640px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    header h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #1a56db;
+    }
+
+    .month-selector {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 8px;
+      font-size: 1rem;
+      color: #555;
+    }
+
+    .month-selector input[type="number"] {
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      padding: 4px 6px;
+      font-size: 1rem;
+      text-align: center;
+      outline: none;
+      transition: border-color 0.2s;
+      -moz-appearance: textfield;
+    }
+
+    .month-selector input[type="number"]::-webkit-inner-spin-button,
+    .month-selector input[type="number"]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+    }
+
+    .month-selector input[type="number"]:focus {
+      border-color: #1a56db;
+      box-shadow: 0 0 0 3px rgba(26,86,219,0.1);
+    }
+
+    #yearInput  { width: 70px; }
+    #monthInput { width: 44px; }
+
+    .th-input {
+      border: none;
+      border-bottom: 1px dashed #ccc;
+      background: transparent;
+      font-size: 0.82rem;
+      color: #888;
+      font-weight: 600;
+      text-align: center;
+      width: 80px;
+      outline: none;
+      padding: 2px 0;
+    }
+
+    .th-input:focus {
+      border-bottom-color: #1a56db;
+      color: #333;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .card h2 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 18px;
+      color: #1a56db;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card h2::before {
+      content: '';
+      display: inline-block;
+      width: 4px;
+      height: 18px;
+      background: #1a56db;
+      border-radius: 2px;
+    }
+
+    /* 時間入力テーブル */
+    .time-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .time-table th {
+      font-size: 0.82rem;
+      color: #888;
+      font-weight: 600;
+      padding: 6px 4px;
+      text-align: center;
+    }
+
+    .time-table td {
+      padding: 8px 4px;
+      text-align: center;
+      vertical-align: middle;
+    }
+
+    .time-table td:first-child {
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.95rem;
+      width: 72px;
+    }
+
+    .time-table tr:not(:last-child) td {
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    input[type="time"] {
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      padding: 7px 6px;
+      font-size: 0.9rem;
+      width: 98px;
+      text-align: center;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input[type="time"]:focus {
+      border-color: #1a56db;
+      box-shadow: 0 0 0 3px rgba(26,86,219,0.1);
+    }
+
+    .save-notice {
+      font-size: 0.78rem;
+      color: #10b981;
+      text-align: right;
+      margin-top: 8px;
+      height: 16px;
+    }
+
+    .note-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid #f0f0f0;
+      flex-wrap: wrap;
+    }
+
+    .note-row label {
+      font-size: 0.85rem;
+      color: #888;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .note-input {
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      padding: 7px 10px;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .note-input:focus {
+      border-color: #1a56db;
+      box-shadow: 0 0 0 3px rgba(26,86,219,0.1);
+    }
+
+    #label_note    { width: 110px; }
+    #note_workday  { width: 140px; }
+
+    .exception-section {
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px dashed #e5e7eb;
+    }
+
+    .exception-section .sec-label {
+      font-size: 0.82rem;
+      color: #888;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    .exception-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+
+    .exception-row span {
+      font-size: 0.9rem;
+      color: #555;
+      white-space: nowrap;
+    }
+
+    .exception-day-input {
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      padding: 7px 8px;
+      font-size: 0.9rem;
+      width: 58px;
+      text-align: center;
+      outline: none;
+    }
+
+    .exception-day-input:focus {
+      border-color: #1a56db;
+      box-shadow: 0 0 0 3px rgba(26,86,219,0.1);
+    }
+
+    .exception-note-input {
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      padding: 7px 10px;
+      font-size: 0.9rem;
+      flex: 1;
+      min-width: 120px;
+      outline: none;
+    }
+
+    .exception-note-input:focus {
+      border-color: #1a56db;
+      box-shadow: 0 0 0 3px rgba(26,86,219,0.1);
+    }
+
+    .del-btn {
+      background: #fee2e2;
+      color: #b91c1c;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-size: 0.88rem;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .del-btn:hover { background: #fecaca; }
+
+    .add-exception-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #eff6ff;
+      color: #1a56db;
+      border: 1px solid #bfdbfe;
+      border-radius: 8px;
+      padding: 7px 14px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-top: 4px;
+    }
+
+    .add-exception-btn:hover { background: #dbeafe; }
+
+    .ex-date-btn {
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      padding: 7px 10px;
+      font-size: 0.88rem;
+      background: #f9fafb;
+      cursor: pointer;
+      white-space: nowrap;
+      color: #374151;
+    }
+
+    .ex-date-btn:hover { background: #e8f0fe; border-color: #1a56db; }
+    .ex-date-btn.selected { background: #eff6ff; border-color: #1a56db; color: #1a56db; font-weight: 600; }
+
+    /* 例外カレンダー モーダル */
+    .ex-cal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .ex-cal-overlay.open { display: flex; }
+
+    .ex-cal-box {
+      background: #fff;
+      border-radius: 14px;
+      padding: 20px;
+      width: 320px;
+      max-width: 95vw;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+    }
+
+    .ex-cal-box h3 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #1a56db;
+      margin-bottom: 14px;
+      text-align: center;
+    }
+
+    .ex-cal-close {
+      display: block;
+      width: 100%;
+      margin-top: 14px;
+      padding: 9px;
+      background: #f3f4f6;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      font-weight: 600;
+      color: #555;
+    }
+
+    .ex-cal-close:hover { background: #e5e7eb; }
+
+    .time-exc-section {
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px dashed #e5e7eb;
+    }
+
+    .time-exception-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+
+    .time-exception-row .ex-date-btn {
+      white-space: nowrap;
+      font-size: 0.85rem;
+    }
+
+    .time-exception-row input[type="time"] {
+      width: 90px;
+      font-size: 0.85rem;
+      padding: 6px 4px;
+    }
+
+    .time-exc-label {
+      font-size: 0.75rem;
+      color: #aaa;
+    }
+
+    /* 有給チェックボックス */
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      user-select: none;
+    }
+
+    .checkbox-label input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+      accent-color: #1a56db;
+    }
+
+    /* カレンダー */
+    #calendarContainer {
+      margin-top: 16px;
+    }
+
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+    }
+
+    .cal-header {
+      text-align: center;
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 6px 0;
+      color: #888;
+    }
+
+    .cal-header:first-child { color: #e53e3e; }
+    .cal-header:last-child  { color: #3182ce; }
+
+    .cal-day {
+      text-align: center;
+      padding: 10px 4px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: background 0.15s;
+      user-select: none;
+    }
+
+    .cal-day:hover:not(.weekend):not(.holiday):not(.empty) {
+      background: #e8f0fe;
+    }
+
+    .cal-day.empty { visibility: hidden; }
+
+    .cal-day.weekend { color: #bbb; cursor: default; }
+    .cal-day.sunday  { color: #fca5a5; cursor: default; }
+    .cal-day.saturday { color: #93c5fd; cursor: default; }
+
+    .cal-day.holiday {
+      color: #e53e3e;
+      background: #fff5f5;
+      cursor: default;
+      font-size: 0.78rem;
+    }
+
+    .cal-day.selected {
+      background: #1a56db;
+      color: #fff !important;
+      font-weight: 700;
+    }
+
+    /* ファイル選択 */
+    .file-area {
+      border: 2px dashed #d1d5db;
+      border-radius: 10px;
+      padding: 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+
+    .file-area:hover { border-color: #1a56db; }
+
+    .file-area input[type="file"] {
+      display: none;
+    }
+
+    .file-area .file-icon {
+      font-size: 2rem;
+      margin-bottom: 8px;
+    }
+
+    .file-area .file-label {
+      font-size: 0.95rem;
+      color: #555;
+    }
+
+    .file-area .file-name {
+      margin-top: 10px;
+      font-size: 0.9rem;
+      color: #1a56db;
+      font-weight: 600;
+      word-break: break-all;
+    }
+
+    /* ボタン */
+    .btn-primary {
+      display: block;
+      width: 100%;
+      padding: 16px;
+      background: #1a56db;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 1.05rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+      margin-top: 8px;
+    }
+
+    .btn-primary:hover:not(:disabled) { background: #1648c0; }
+    .btn-primary:disabled { background: #93c5fd; cursor: not-allowed; }
+
+    /* 完了メッセージ */
+    .toast {
+      display: none;
+      background: #059669;
+      color: #fff;
+      border-radius: 10px;
+      padding: 14px 20px;
+      text-align: center;
+      font-weight: 600;
+      margin-top: 16px;
+      font-size: 0.95rem;
+    }
+
+    .error-msg {
+      display: none;
+      background: #fee2e2;
+      color: #b91c1c;
+      border-radius: 10px;
+      padding: 14px 20px;
+      text-align: center;
+      margin-top: 16px;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>日報自動入力アプリ</h1>
+    <div class="month-selector">
+      <input type="number" id="yearInput" name="year" value="{{ current_year }}" min="2000" max="2099">
+      <span>年</span>
+      <input type="number" id="monthInput" name="month" value="{{ current_month }}" min="1" max="12">
+      <span>月分</span>
+    </div>
+  </header>
+
+  <form id="mainForm">
+
+    <!-- ① 曜日別勤務時間 -->
+    <div class="card">
+      <h2>曜日別の勤務時間</h2>
+      <table class="time-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th><input class="th-input" id="label_start" name="label_start" type="text" value="開始時間"></th>
+            <th><input class="th-input" id="label_end"   name="label_end"   type="text" value="終了時間"></th>
+            <th><input class="th-input" id="label_break" name="label_break" type="text" value="休憩時間"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>月曜日</td>
+            <td><input type="time" name="monday_start" value="09:00" required></td>
+            <td><input type="time" name="monday_end" value="18:00" required></td>
+            <td><input type="time" name="monday_break" value="01:00" required></td>
+          </tr>
+          <tr>
+            <td>火曜日</td>
+            <td><input type="time" name="tuesday_start" value="09:00" required></td>
+            <td><input type="time" name="tuesday_end" value="18:00" required></td>
+            <td><input type="time" name="tuesday_break" value="01:00" required></td>
+          </tr>
+          <tr>
+            <td>水曜日</td>
+            <td><input type="time" name="wednesday_start" value="09:00" required></td>
+            <td><input type="time" name="wednesday_end" value="18:00" required></td>
+            <td><input type="time" name="wednesday_break" value="01:00" required></td>
+          </tr>
+          <tr>
+            <td>木曜日</td>
+            <td><input type="time" name="thursday_start" value="09:00" required></td>
+            <td><input type="time" name="thursday_end" value="18:00" required></td>
+            <td><input type="time" name="thursday_break" value="01:00" required></td>
+          </tr>
+          <tr>
+            <td>金曜日</td>
+            <td><input type="time" name="friday_start" value="09:00" required></td>
+            <td><input type="time" name="friday_end" value="18:00" required></td>
+            <td><input type="time" name="friday_break" value="01:00" required></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="time-exc-section">
+        <div id="timeExceptionRows"></div>
+        <button type="button" class="add-exception-btn" id="addTimeExceptionBtn">＋ 例外日を追加</button>
+      </div>
+
+      <div class="note-row">
+        <label>備考列タイトル</label>
+        <input class="note-input" id="label_note" name="label_note" type="text" value="備考">
+        <label>出勤日の記入内容</label>
+        <input class="note-input" id="note_workday" name="note_workday" type="text" value="在宅勤務">
+        <label class="checkbox-label" style="margin-left:4px">
+          <input type="checkbox" id="sameNote" checked>
+          出勤日はすべて同じ
+        </label>
+      </div>
+
+      <div class="exception-section" id="exceptionSection" style="display:none">
+        <div class="sec-label">例外日の備考設定</div>
+        <div id="exceptionRows"></div>
+        <button type="button" class="add-exception-btn" id="addExceptionBtn">＋ 例外日を追加</button>
+      </div>
+
+      <div class="save-notice" id="saveNotice"></div>
+    </div>
+
+    <!-- ② 有給取得日 -->
+    <div class="card">
+      <h2>有給取得日（任意）</h2>
+      <label class="checkbox-label">
+        <input type="checkbox" id="hasPaidLeave">
+        有給を取得する日がある
+      </label>
+      <div id="calendarContainer" style="display:none"></div>
+      <input type="hidden" name="paid_leave_dates" id="paidLeaveDates">
+    </div>
+
+    <!-- ③ Excelファイル選択 -->
+    <div class="card">
+      <h2>Excelファイルを選択</h2>
+      <label class="file-area" id="fileArea">
+        <input type="file" name="excel_file" id="fileInput" accept=".xlsx">
+        <div class="file-icon">📂</div>
+        <div class="file-label">クリックしてファイルを選択<br><small>（会社から配布された作業報告書 .xlsx）</small></div>
+        <div class="file-name" id="fileName"></div>
+      </label>
+    </div>
+
+    <button type="button" class="btn-primary" id="submitBtn">入力完了・ダウンロード</button>
+    <div class="toast" id="toast">✅ 完了！ファイルをダウンロードして保存してください。</div>
+    <div class="error-msg" id="errorMsg"></div>
+
+  </form>
+</div>
+
+<!-- 例外日カレンダー モーダル -->
+<div class="ex-cal-overlay" id="exCalOverlay">
+  <div class="ex-cal-box">
+    <h3 id="exCalTitle">日付を選択</h3>
+    <div id="exCalGrid"></div>
+    <button class="ex-cal-close" onclick="closeExCal()">閉じる</button>
+  </div>
+</div>
+
+<script>
+  function getYear()  { return parseInt(document.getElementById('yearInput').value)  || {{ current_year }}; }
+  function getMonth() { return parseInt(document.getElementById('monthInput').value) || {{ current_month }}; }
+  const selectedDays = new Set();
+  let holidays = {};
+
+  const DAY_NAMES  = ['monday','tuesday','wednesday','thursday','friday'];
+  const TIME_TYPES = ['start','end','break'];
+  const LABEL_IDS  = ['label_start','label_end','label_break','label_note','note_workday'];
+  const STORAGE_KEY = 'dailyReport_timeSettings';
+
+  // 設定を localStorage に保存
+  function saveSettings() {
+    const settings = {};
+    DAY_NAMES.forEach(day => {
+      TIME_TYPES.forEach(type => {
+        const el = document.querySelector(`[name="${day}_${type}"]`);
+        if (el) settings[`${day}_${type}`] = el.value;
+      });
+    });
+    LABEL_IDS.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) settings[id] = el.value;
+    });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    const notice = document.getElementById('saveNotice');
+    notice.textContent = '✓ 保存しました';
+    setTimeout(() => { notice.textContent = ''; }, 2000);
+  }
+
+  // 設定を localStorage から読み込む
+  function loadSettings() {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return;
+    try {
+      const settings = JSON.parse(saved);
+      DAY_NAMES.forEach(day => {
+        TIME_TYPES.forEach(type => {
+          const el = document.querySelector(`[name="${day}_${type}"]`);
+          if (el && settings[`${day}_${type}`]) el.value = settings[`${day}_${type}`];
+        });
+      });
+      LABEL_IDS.forEach(id => {
+        const el = document.getElementById(id);
+        if (el && settings[id]) el.value = settings[id];
+      });
+    } catch (e) { /* 読み込み失敗時は初期値のまま */ }
+  }
+
+  // 時間入力・タイトル入力・備考入力が変わったら自動保存
+  document.querySelectorAll('input[type="time"], .th-input, .note-input').forEach(el => {
+    el.addEventListener('change', saveSettings);
+  });
+
+  // 祝日取得
+  async function fetchHolidays() {
+    try {
+      const y = getYear(), m = getMonth();
+      const res = await fetch(`/api/holidays?year=${y}&month=${m}`);
+      holidays = await res.json();
+    } catch (e) {
+      holidays = {};
+    }
+  }
+
+  // カレンダー生成
+  function buildCalendar() {
+    const YEAR = getYear(), MONTH = getMonth();
+    const daysInMonth = new Date(YEAR, MONTH, 0).getDate();
+    const firstDow    = new Date(YEAR, MONTH - 1, 1).getDay(); // 0=Sun
+
+    let html = '<div class="calendar-grid">';
+    ['日','月','火','水','木','金','土'].forEach(d => {
+      html += `<div class="cal-header">${d}</div>`;
+    });
+
+    for (let i = 0; i < firstDow; i++) {
+      html += '<div class="cal-day empty"></div>';
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dow       = new Date(YEAR, MONTH - 1, day).getDay();
+      const isSun     = dow === 0;
+      const isSat     = dow === 6;
+      const isHoliday = !!holidays[String(day)];
+      const isWeekend = isSun || isSat;
+
+      let cls = 'cal-day';
+      let attrs = `data-day="${day}"`;
+
+      if (isWeekend) {
+        cls += isSun ? ' sunday' : ' saturday';
+      } else if (isHoliday) {
+        cls += ' holiday';
+        attrs += ` title="${holidays[String(day)]}"`;
+      } else {
+        attrs += ` onclick="toggleDay(this,${day})"`;
+      }
+
+      const label = isHoliday
+        ? `<div style="font-size:0.72rem;line-height:1.2">${day}<br>${holidays[String(day)]}</div>`
+        : day;
+
+      html += `<div class="${cls}" ${attrs}>${label}</div>`;
+    }
+
+    html += '</div>';
+    document.getElementById('calendarContainer').innerHTML = html;
+  }
+
+  function toggleDay(el, day) {
+    if (selectedDays.has(day)) {
+      selectedDays.delete(day);
+      el.classList.remove('selected');
+    } else {
+      selectedDays.add(day);
+      el.classList.add('selected');
+    }
+    document.getElementById('paidLeaveDates').value = [...selectedDays].sort((a,b)=>a-b).join(',');
+  }
+
+  // すべて同じ チェックボックス
+  document.getElementById('sameNote').addEventListener('change', function () {
+    document.getElementById('exceptionSection').style.display = this.checked ? 'none' : 'block';
+  });
+
+  // 備考 例外行を追加
+  function addExceptionRow(day = '', note = '') {
+    const month = getMonth();
+    const label = day ? `${month}月${day}日` : '日付を選択';
+    const row = document.createElement('div');
+    row.className = 'exception-row';
+    row.innerHTML = `
+      <button type="button" class="ex-date-btn${day ? ' selected' : ''}"
+              onclick="openExCal(this)">${label}</button>
+      <input type="hidden" class="ex-day-input" name="exception_day" value="${day}">
+      <input type="text" class="exception-note-input" name="exception_note"
+             placeholder="備考内容" value="${note}">
+      <button type="button" class="del-btn" onclick="this.closest('.exception-row').remove()">✕</button>
+    `;
+    document.getElementById('exceptionRows').appendChild(row);
+  }
+
+  document.getElementById('addExceptionBtn').addEventListener('click', () => addExceptionRow());
+
+  // 時間 例外行を追加
+  function addTimeExceptionRow(day = '', start = '09:00', end = '18:00', brk = '01:00') {
+    const month = getMonth();
+    const label = day ? `${month}月${day}日` : '日付を選択';
+    const row = document.createElement('div');
+    row.className = 'time-exception-row';
+    row.innerHTML = `
+      <button type="button" class="ex-date-btn${day ? ' selected' : ''}"
+              onclick="openExCal(this)">${label}</button>
+      <input type="hidden" class="ex-day-input" name="time_ex_day" value="${day}">
+      <span class="time-exc-label">開始</span>
+      <input type="time" name="time_ex_start" value="${start}">
+      <span class="time-exc-label">終了</span>
+      <input type="time" name="time_ex_end" value="${end}">
+      <span class="time-exc-label">休憩</span>
+      <input type="time" name="time_ex_break" value="${brk}">
+      <button type="button" class="del-btn" onclick="this.closest('.time-exception-row').remove()">✕</button>
+    `;
+    document.getElementById('timeExceptionRows').appendChild(row);
+  }
+
+  document.getElementById('addTimeExceptionBtn').addEventListener('click', () => addTimeExceptionRow());
+
+  // ── 例外日カレンダー モーダル ──
+  let exCalTargetRow = null;
+
+  async function openExCal(btn) {
+    exCalTargetRow = btn.closest('.exception-row, .time-exception-row');
+    if (!Object.keys(holidays).length) await fetchHolidays();
+    buildExCalendar();
+    const year = getYear(), month = getMonth();
+    document.getElementById('exCalTitle').textContent = `${year}年${month}月`;
+    document.getElementById('exCalOverlay').classList.add('open');
+  }
+
+  function closeExCal() {
+    document.getElementById('exCalOverlay').classList.remove('open');
+    exCalTargetRow = null;
+  }
+
+  // オーバーレイ背景クリックで閉じる
+  document.getElementById('exCalOverlay').addEventListener('click', function (e) {
+    if (e.target === this) closeExCal();
+  });
+
+  function buildExCalendar() {
+    const year = getYear(), month = getMonth();
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const firstDow    = new Date(year, month - 1, 1).getDay();
+
+    let html = '<div class="calendar-grid">';
+    ['日','月','火','水','木','金','土'].forEach(d => {
+      html += `<div class="cal-header">${d}</div>`;
+    });
+    for (let i = 0; i < firstDow; i++) {
+      html += '<div class="cal-day empty"></div>';
+    }
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dow       = new Date(year, month - 1, day).getDay();
+      const isSun     = dow === 0;
+      const isSat     = dow === 6;
+      const isHoliday = !!holidays[String(day)];
+      let cls = 'cal-day';
+      let attrs = '';
+      if (isSun)      cls += ' sunday';
+      else if (isSat) cls += ' saturday';
+      else if (isHoliday) { cls += ' holiday'; attrs = ` title="${holidays[String(day)]}"` ; }
+      else            attrs = ` onclick="selectExDay(${day})" style="cursor:pointer"`;
+      const label = isHoliday
+        ? `<div style="font-size:0.72rem;line-height:1.2">${day}<br>${holidays[String(day)]}</div>`
+        : day;
+      html += `<div class="${cls}"${attrs}>${label}</div>`;
+    }
+    html += '</div>';
+    document.getElementById('exCalGrid').innerHTML = html;
+  }
+
+  function selectExDay(day) {
+    if (!exCalTargetRow) return;
+    const month = getMonth();
+    const btn = exCalTargetRow.querySelector('.ex-date-btn');
+    btn.textContent = `${month}月${day}日`;
+    btn.classList.add('selected');
+    exCalTargetRow.querySelector('.ex-day-input').value = day;
+    closeExCal();
+  }
+
+  // 年月変更時：カレンダーと例外行をリセット
+  ['yearInput','monthInput'].forEach(id => {
+    document.getElementById(id).addEventListener('change', () => {
+      // 有給カレンダーリセット
+      selectedDays.clear();
+      document.getElementById('paidLeaveDates').value = '';
+      holidays = {};
+      const cb = document.getElementById('hasPaidLeave');
+      if (cb.checked) {
+        fetchHolidays().then(buildCalendar);
+      }
+      // 全例外行の日付ボタン表示を更新（月表示を現在の月に合わせる）
+      const month = getMonth();
+      document.querySelectorAll('.exception-row, .time-exception-row').forEach(row => {
+        const hidden = row.querySelector('.ex-day-input');
+        const btn    = row.querySelector('.ex-date-btn');
+        if (hidden && hidden.value) {
+          btn.textContent = `${month}月${hidden.value}日`;
+        } else {
+          btn.textContent = '日付を選択';
+          btn.classList.remove('selected');
+        }
+      });
+    });
+  });
+
+  // 有給チェックボックス
+  document.getElementById('hasPaidLeave').addEventListener('change', async function () {
+    const container = document.getElementById('calendarContainer');
+    if (this.checked) {
+      await fetchHolidays();
+      buildCalendar();
+      container.style.display = 'block';
+    } else {
+      container.style.display = 'none';
+      selectedDays.clear();
+      document.getElementById('paidLeaveDates').value = '';
+    }
+  });
+
+  // ファイル選択表示
+  document.getElementById('fileInput').addEventListener('change', function () {
+    const name = this.files[0] ? this.files[0].name : '';
+    document.getElementById('fileName').textContent = name;
+  });
+
+  // 送信処理
+  document.getElementById('submitBtn').addEventListener('click', async () => {
+    const fileInput = document.getElementById('fileInput');
+    if (!fileInput.files.length) {
+      showError('Excelファイルを選択してください。');
+      return;
+    }
+
+    const btn = document.getElementById('submitBtn');
+    btn.textContent = '処理中...';
+    btn.disabled = true;
+    hideMessages();
+
+    try {
+      const formData = new FormData(document.getElementById('mainForm'));
+      // 「出勤日はすべて同じ」チェック時は例外データを除外
+      if (document.getElementById('sameNote').checked) {
+        formData.delete('exception_day');
+        formData.delete('exception_note');
+      }
+
+      const res = await fetch('/api/write', { method: 'POST', body: formData });
+
+      if (!res.ok) {
+        const err = await res.json();
+        showError('エラー: ' + (err.error || '不明なエラーが発生しました'));
+        return;
+      }
+
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = fileInput.files[0].name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      document.getElementById('toast').style.display = 'block';
+    } catch (e) {
+      showError('通信エラーが発生しました: ' + e.message);
+    } finally {
+      btn.textContent = '入力完了・ダウンロード';
+      btn.disabled = false;
+    }
+  });
+
+  function showError(msg) {
+    const el = document.getElementById('errorMsg');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+
+  function hideMessages() {
+    document.getElementById('toast').style.display    = 'none';
+    document.getElementById('errorMsg').style.display = 'none';
+  }
+
+  // 起動時に保存済み設定を読み込む
+  loadSettings();
+</script>
+</body>
+</html>
