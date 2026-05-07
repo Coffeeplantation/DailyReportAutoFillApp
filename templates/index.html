@@ -1006,6 +1006,26 @@
     document.getElementById('errorMsg').style.display = 'none';
   }
 
+  // 時間ピッカーを分の選択後に自動で閉じる
+  (function () {
+    const timers  = new WeakMap();
+    const prevVal = new WeakMap();
+
+    document.addEventListener('focus', function (e) {
+      if (e.target.type === 'time') prevVal.set(e.target, e.target.value);
+    }, true);
+
+    document.addEventListener('input', function (e) {
+      if (e.target.type !== 'time' || !e.target.value) return;
+      const el   = e.target;
+      const prev = prevVal.get(el) || '';
+      const curr = el.value;
+      if (timers.has(el)) clearTimeout(timers.get(el));
+      timers.set(el, setTimeout(() => { el.blur(); timers.delete(el); }, 300));
+      prevVal.set(el, curr);
+    });
+  })();
+
   // 起動時に保存済み設定を読み込む
   loadSettings();
 </script>
