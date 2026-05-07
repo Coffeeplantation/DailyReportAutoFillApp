@@ -1,3 +1,4 @@
+
 from flask import Flask, render_template, request, send_file, jsonify
 from flask_httpauth import HTTPBasicAuth
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -7,13 +8,17 @@ import jpholiday
 from datetime import date, time
 import calendar
 import io
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB
 auth = HTTPBasicAuth()
 
 USERS = {
-    'root': generate_password_hash('root'),
+    os.getenv('APP_USERNAME', 'root'): generate_password_hash(os.getenv('APP_PASSWORD', 'root')),
 }
 
 @auth.verify_password
