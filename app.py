@@ -22,12 +22,26 @@ def find_column(ws, header_row, label):
     """ヘッダー行からラベルに一致する列を返す（部分一致対応）。見つからなければ None。"""
     label = label.strip()
     if not label:
-        return None  # 空ラベルは常に不一致扱い
+        return None
     for cell in ws[header_row]:
         if cell.value:
             cell_val = str(cell.value).strip()
             if cell_val == label or label in cell_val or cell_val in label:
                 return cell.column_letter
+    return None
+
+
+def find_header_row(ws, labels):
+    """ラベルを2つ以上含む行をヘッダー行として検索する。見つからなければ None。"""
+    clean = [l.strip() for l in labels if l.strip()]
+    for row in ws.iter_rows(min_row=1, max_row=ws.max_row):
+        row_vals = [str(c.value).strip() for c in row if c.value]
+        hits = sum(
+            1 for label in clean
+            if any(label in v or v in label for v in row_vals)
+        )
+        if hits >= 2:
+            return row[0].row
     return None
 
 
@@ -97,13 +111,15 @@ def write_excel():
     wb = openpyxl.load_workbook(excel_file)
     ws = wb.active
 
-    # ヘッダー行からラベルで列を検索（見つからなければデフォルト列を使用）
-    HEADER_ROW = 19
-    label_start    = request.form.get('label_start',   '開始時間')
-    label_end      = request.form.get('label_end',     '終了時間')
-    label_break    = request.form.get('label_break',   '休憩時間')
-    label_note     = request.form.get('label_note',    '備考')
-    note_workday   = request.form.get('note_workday',  '在宅勤務')
+    label_start  = request.form.get('label_start',  '開始時間')
+    label_end    = request.form.get('label_end',    '終了時間')
+    label_break  = request.form.get('label_break',  '休憩時間')
+    label_note   = request.form.get('label_note',   '備考')
+    note_workday = request.form.get('note_workday', '在宅勤務')
+
+    # ヘッダー行をラベルで動的検索（見つからなければ19行目をフォールバック）
+    HEADER_ROW    = find_header_row(ws, [label_start, label_end, label_break, label_note]) or 19
+    DATA_START_ROW = HEADER_ROW + 1
 
     # 例外日の備考（日付→備考のマッピング）
     ex_days  = request.form.getlist('exception_day')
@@ -133,7 +149,7 @@ def write_excel():
     col_note  = find_column(ws, HEADER_ROW, label_note)  or 'S'
 
     for day in range(1, last_day + 1):
-        row = 19 + day  # 1日目=20行目
+        row = DATA_START_ROW + (day - 1)
         weekday = date(year, month, day).weekday()  # 0=月, 6=日
 
         # 対象セルをクリア
