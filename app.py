@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, send_file, jsonify
 from flask_httpauth import HTTPBasicAuth
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 import openpyxl
 import jpholiday
 from datetime import date, time
@@ -8,6 +9,7 @@ import calendar
 import io
 
 app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB
 auth = HTTPBasicAuth()
 
 USERS = {
@@ -70,8 +72,13 @@ def index():
 @auth.login_required
 def get_holidays():
     today = date.today()
-    year  = int(request.args.get('year',  today.year))
-    month = int(request.args.get('month', today.month))
+    try:
+        year  = int(request.args.get('year',  today.year))
+        month = int(request.args.get('month', today.month))
+        if not (2000 <= year <= 2099) or not (1 <= month <= 12):
+            raise ValueError
+    except (ValueError, TypeError):
+        return jsonify({'error': '年月の値が正しくありません'}), 400
     _, last_day = calendar.monthrange(year, month)
     holidays = {}
     for day in range(1, last_day + 1):
@@ -87,6 +94,7 @@ def write_excel():
     excel_file = request.files.get('excel_file')
     if not excel_file:
         return jsonify({'error': 'ファイルが選択されていません'}), 400
+    safe_name = secure_filename(excel_file.filename) or 'report.xlsx'
 
     # 有給取得日
     paid_leave_str = request.form.get('paid_leave_dates', '')
@@ -123,7 +131,10 @@ def write_excel():
             holidays.add(day)
 
     # Excel処理
-    wb = openpyxl.load_workbook(excel_file)
+    try:
+        wb = openpyxl.load_workbook(excel_file)
+    except Exception:
+        return jsonify({'error': 'ファイルを開けませんでした。Excel形式（.xlsx）のファイルを選択してください。'}), 400
     ws = wb.active
 
     label_start  = request.form.get('label_start',  '開始時間')
@@ -211,10 +222,10 @@ def write_excel():
     return send_file(
         buf,
         as_attachment=True,
-        download_name=excel_file.filename,
+        download_name=safe_name,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', debug=True, port=5000)
+    app.run(host='0.0.0.0', debug=False, port=5000)
