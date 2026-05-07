@@ -1,4 +1,6 @@
 from flask import Flask, render_template, request, send_file, jsonify
+from flask_httpauth import HTTPBasicAuth
+from werkzeug.security import generate_password_hash, check_password_hash
 import openpyxl
 import jpholiday
 from datetime import date, time
@@ -6,6 +8,16 @@ import calendar
 import io
 
 app = Flask(__name__)
+auth = HTTPBasicAuth()
+
+USERS = {
+    'root': generate_password_hash('root'),
+}
+
+@auth.verify_password
+def verify_password(username, password):
+    if username in USERS and check_password_hash(USERS[username], password):
+        return username
 
 
 def parse_time(time_str):
@@ -46,6 +58,7 @@ def find_header_row(ws, labels):
 
 
 @app.route('/')
+@auth.login_required
 def index():
     today = date.today()
     return render_template('index.html',
@@ -54,6 +67,7 @@ def index():
 
 
 @app.route('/api/holidays')
+@auth.login_required
 def get_holidays():
     today = date.today()
     year  = int(request.args.get('year',  today.year))
@@ -68,6 +82,7 @@ def get_holidays():
 
 
 @app.route('/api/write', methods=['POST'])
+@auth.login_required
 def write_excel():
     excel_file = request.files.get('excel_file')
     if not excel_file:
