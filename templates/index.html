@@ -682,13 +682,13 @@
     </div>
     <div>
       <button type="button" class="help-toggle" id="helpToggleBtn" onclick="toggleHelp()">
-        <span id="helpToggleIcon">?</span> 使い方を見る
+        <span id="helpToggleIcon">✕</span> 使い方を閉じる
       </button>
     </div>
   </header>
 
   <!-- ヘルプセクション -->
-  <div class="help-card" id="helpCard">
+  <div class="help-card open" id="helpCard">
     <div class="help-inner">
       <h2>使い方ガイド</h2>
 
@@ -896,10 +896,11 @@
 
   function toggleHelp() {
     const card = document.getElementById('helpCard');
-    const icon = document.getElementById('helpToggleIcon');
     const btn  = document.getElementById('helpToggleBtn');
     const open = card.classList.toggle('open');
-    icon.textContent = open ? '✕' : '?';
+    btn.innerHTML = open
+      ? '<span>✕</span> 使い方を閉じる'
+      : '<span>?</span> 使い方を見る';
     btn.style.background = open ? 'rgba(255,255,255,0.15)' : '';
   }
   const selectedDays = new Set();
