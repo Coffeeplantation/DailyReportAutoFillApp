@@ -444,6 +444,10 @@
     .cal-day.sunday  { color: #fca5a5; cursor: default; }
     .cal-day.saturday { color: #93c5fd; cursor: default; }
 
+    /* 例外カレンダーでの土日（休日出勤選択用） */
+    .cal-day.ex-selectable { cursor: pointer; }
+    .cal-day.ex-selectable:hover { opacity: 0.75; background: #f3f4f6; }
+
     .cal-day.holiday {
       color: #e53e3e;
       background: #fff5f5;
@@ -634,12 +638,15 @@
     <!-- ③ Excelファイル選択 -->
     <div class="card">
       <h2>Excelファイルを選択</h2>
-      <label class="file-area" id="fileArea">
-        <input type="file" name="excel_file" id="fileInput" accept=".xlsx">
-        <div class="file-icon">📂</div>
-        <div class="file-label">クリックしてファイルを選択<br><small>（会社から配布された作業報告書 .xlsx）</small></div>
-        <div class="file-name" id="fileName"></div>
-      </label>
+      <div style="display:flex; align-items:flex-start; gap:8px;">
+        <label class="file-area" id="fileArea" style="flex:1">
+          <input type="file" name="excel_file" id="fileInput" accept=".xlsx">
+          <div class="file-icon">📂</div>
+          <div class="file-label">クリックしてファイルを選択<br><small>（会社から配布された作業報告書 .xlsx）</small></div>
+          <div class="file-name" id="fileName"></div>
+        </label>
+        <button type="button" class="del-btn" id="clearFileBtn" style="display:none; margin-top:4px;" onclick="clearFile()">✕</button>
+      </div>
     </div>
 
     <button type="button" class="btn-primary" id="submitBtn">入力完了・ダウンロード</button>
@@ -867,11 +874,15 @@
       const isHoliday = !!holidays[String(day)];
       let cls = 'cal-day';
       let attrs = '';
-      if (isSun)      cls += ' sunday';
-      else if (isSat) cls += ' saturday';
-      else if (isHoliday) {
+      if (isSun) {
+        cls += ' sunday ex-selectable';
+        attrs = ` onclick="selectExDay(${day})" title="日曜日（休日出勤）"`;
+      } else if (isSat) {
+        cls += ' saturday ex-selectable';
+        attrs = ` onclick="selectExDay(${day})" title="土曜日（休日出勤）"`;
+      } else if (isHoliday) {
         cls += ' holiday-selectable';
-        attrs = ` onclick="selectExDay(${day})" title="${holidays[String(day)]}（選択可）"`;
+        attrs = ` onclick="selectExDay(${day})" title="${holidays[String(day)]}（休日出勤）"`;
       } else {
         attrs = ` onclick="selectExDay(${day})"`;
       }
@@ -945,7 +956,14 @@
   document.getElementById('fileInput').addEventListener('change', function () {
     const name = this.files[0] ? this.files[0].name : '';
     document.getElementById('fileName').textContent = name;
+    document.getElementById('clearFileBtn').style.display = name ? 'inline-block' : 'none';
   });
+
+  function clearFile() {
+    document.getElementById('fileInput').value = '';
+    document.getElementById('fileName').textContent = '';
+    document.getElementById('clearFileBtn').style.display = 'none';
+  }
 
   // 送信処理
   document.getElementById('submitBtn').addEventListener('click', async () => {

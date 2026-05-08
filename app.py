@@ -187,10 +187,8 @@ def write_excel():
         for col in [col_start, col_end, col_break, col_note]:
             ws[f'{col}{row}'].value = None
 
-        if weekday >= 5:
-            pass  # 土日：空欄
-        elif day in time_exceptions:
-            # 時間例外が最優先（祝日・有給より上書き可能）
+        if day in time_exceptions:
+            # 時間例外が最優先（土日・祝日・有給より上書き可能）
             t = time_exceptions[day]
             ws[f'{col_start}{row}'].value = t['start']
             ws[f'{col_start}{row}'].number_format = 'h:mm'
@@ -199,6 +197,8 @@ def write_excel():
             ws[f'{col_break}{row}'].value = t['break']
             ws[f'{col_break}{row}'].number_format = 'h:mm'
             ws[f'{col_note}{row}'].value = note_exceptions[day] if day in note_exceptions else note_workday
+        elif weekday >= 5:
+            pass  # 土日：空欄
         elif day in holidays:
             ws[f'{col_note}{row}'].value = '祝日'
         elif day in paid_leave:
