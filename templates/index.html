@@ -499,130 +499,49 @@
       word-break: break-all;
     }
 
-    /* ヘルプトグルボタン */
-    .help-toggle {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      margin-top: 10px;
-      padding: 6px 16px;
-      background: transparent;
-      border: 1.5px solid #93c5fd;
-      border-radius: 20px;
-      color: #93c5fd;
-      font-size: 0.85rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.2s, color 0.2s;
-    }
-
-    .help-toggle:hover {
-      background: rgba(255,255,255,0.1);
-    }
-
-    /* ヘルプカード */
-    .help-card {
-      background: #fff;
-      border-radius: 12px;
-      margin-bottom: 20px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-      overflow: hidden;
-      display: none;
-    }
-
-    .help-card.open { display: block; }
-
-    .help-card h2 {
-      font-size: 1rem;
-      font-weight: 700;
-      margin-bottom: 0;
-      color: #1a56db;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .help-card h2::before {
-      content: '';
-      display: inline-block;
-      width: 4px;
-      height: 18px;
-      background: #1a56db;
-      border-radius: 2px;
-    }
-
-    .help-inner { padding: 24px; }
-
-    .help-steps { display: flex; flex-direction: column; gap: 0; margin-top: 18px; }
-
-    .help-step {
-      display: flex;
-      gap: 14px;
-      align-items: flex-start;
-      padding: 14px 0;
+    /* カード内説明文 */
+    .card-desc {
+      font-size: 0.83rem;
+      color: #6b7280;
+      line-height: 1.6;
+      margin-bottom: 14px;
+      padding-bottom: 14px;
       border-bottom: 1px solid #f0f2f5;
     }
 
-    .help-step:last-child { border-bottom: none; }
+    .card-desc b { color: #374151; }
 
-    .step-badge {
-      flex-shrink: 0;
-      width: 52px;
-      padding: 3px 0;
-      background: #1a56db;
-      color: #fff;
-      font-size: 0.72rem;
-      font-weight: 700;
-      border-radius: 20px;
-      text-align: center;
-      margin-top: 1px;
-    }
-
-    .step-body { flex: 1; }
-
-    .step-title {
-      font-size: 0.95rem;
-      font-weight: 700;
-      color: #1e3a8a;
-      margin-bottom: 4px;
-    }
-
-    .step-desc {
-      font-size: 0.85rem;
-      color: #555;
-      line-height: 1.65;
-    }
-
-    /* 入力ルール表 */
-    .help-rule-table {
+    /* 入力ルール表（カード内） */
+    .rule-table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 18px;
-      font-size: 0.85rem;
+      margin-top: 14px;
+      font-size: 0.8rem;
     }
 
-    .help-rule-table th {
-      background: #1a56db;
-      color: #fff;
-      padding: 8px 10px;
+    .rule-table th {
+      background: #eff6ff;
+      color: #1e40af;
+      padding: 6px 8px;
       font-weight: 700;
       text-align: center;
+      border: 1px solid #dbeafe;
     }
 
-    .help-rule-table td {
-      padding: 8px 10px;
+    .rule-table td {
+      padding: 6px 8px;
       border: 1px solid #e5e7eb;
       text-align: center;
       vertical-align: middle;
     }
 
-    .help-rule-table tr:nth-child(even) td { background: #f8faff; }
+    .rule-table tr:nth-child(even) td { background: #f8faff; }
 
     .rule-tag {
       display: inline-block;
-      padding: 2px 8px;
+      padding: 1px 7px;
       border-radius: 10px;
-      font-size: 0.78rem;
+      font-size: 0.76rem;
       font-weight: 600;
     }
 
@@ -680,107 +599,14 @@
       <input type="number" id="monthInput" name="month" value="{{ current_month }}" min="1" max="12">
       <span>月分</span>
     </div>
-    <div>
-      <button type="button" class="help-toggle" id="helpToggleBtn" onclick="toggleHelp()">
-        <span id="helpToggleIcon">✕</span> 使い方を閉じる
-      </button>
-    </div>
   </header>
-
-  <!-- ヘルプセクション -->
-  <div class="help-card open" id="helpCard">
-    <div class="help-inner">
-      <h2>使い方ガイド</h2>
-
-      <div class="help-steps">
-        <div class="help-step">
-          <div class="step-badge">STEP 1</div>
-          <div class="step-body">
-            <div class="step-title">対象月を確認する</div>
-            <div class="step-desc">画面上部の「年・月」が自動で当月に設定されます。別の月を処理したい場合は数字を直接変更してください。</div>
-          </div>
-        </div>
-        <div class="help-step">
-          <div class="step-badge">STEP 2</div>
-          <div class="step-body">
-            <div class="step-title">曜日別の勤務時間を入力する</div>
-            <div class="step-desc">月〜金それぞれの開始・終了・休憩時間を入力します。入力した設定はブラウザに自動保存され、次回起動時にも引き継がれます。</div>
-          </div>
-        </div>
-        <div class="help-step">
-          <div class="step-badge">STEP 3</div>
-          <div class="step-body">
-            <div class="step-title">例外日を設定する（任意）</div>
-            <div class="step-desc">「＋ 例外日を追加」から、残業・早退・休日出勤など通常と異なる日を個別設定できます。土日・祝日も選択可能です。例外日の設定は他のすべての設定より優先されます。</div>
-          </div>
-        </div>
-        <div class="help-step">
-          <div class="step-badge">STEP 4</div>
-          <div class="step-body">
-            <div class="step-title">有給取得日を選択する（任意）</div>
-            <div class="step-desc">「有給を取得する日がある」にチェックを入れるとカレンダーが表示されます。該当日をクリックして選択してください（土日・祝日も選択可能）。</div>
-          </div>
-        </div>
-        <div class="help-step">
-          <div class="step-badge">STEP 5</div>
-          <div class="step-body">
-            <div class="step-title">Excelファイルを選択する</div>
-            <div class="step-desc">ファイル選択エリアをクリックし、会社から配布された作業報告書（.xlsx）を選びます。選択後、右側の ✕ ボタンで選択をやり直せます。</div>
-          </div>
-        </div>
-        <div class="help-step">
-          <div class="step-badge">STEP 6</div>
-          <div class="step-body">
-            <div class="step-title">入力完了・ダウンロード</div>
-            <div class="step-desc">「入力完了・ダウンロード」ボタンを押すと、自動入力済みのExcelファイルがダウンロードされます。ファイルを開いて内容を確認し、所定の場所に保存してください。</div>
-          </div>
-        </div>
-      </div>
-
-      <table class="help-rule-table">
-        <thead>
-          <tr>
-            <th>日の種類</th>
-            <th>開始・終了・休憩</th>
-            <th>備考欄</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>出勤日（平日）</td>
-            <td>曜日別設定の時間 / 休憩 1:00</td>
-            <td><span class="rule-tag" style="background:#dbeafe;color:#1e40af">在宅勤務（変更可）</span></td>
-          </tr>
-          <tr>
-            <td>例外日（休日出勤など）</td>
-            <td>例外設定した時間 / 休憩 1:00</td>
-            <td><span class="rule-tag" style="background:#fef9c3;color:#92400e">在宅勤務（変更可）</span></td>
-          </tr>
-          <tr>
-            <td>有給取得日</td>
-            <td>空欄</td>
-            <td><span class="rule-tag" style="background:#fce7f3;color:#be185d">私用により、休暇</span></td>
-          </tr>
-          <tr>
-            <td>祝日</td>
-            <td>空欄</td>
-            <td><span class="rule-tag" style="background:#fff5f5;color:#e53e3e">祝日</span></td>
-          </tr>
-          <tr>
-            <td>土日</td>
-            <td>空欄</td>
-            <td>空欄</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
 
   <form id="mainForm">
 
     <!-- ① 曜日別勤務時間 -->
     <div class="card">
       <h2>曜日別の勤務時間</h2>
+      <p class="card-desc">月〜金それぞれの<b>開始・終了・休憩時間</b>を入力してください。設定はブラウザに自動保存され、次回起動時にも引き継がれます。<br>残業・早退・休日出勤など通常と異なる日は、下の <b>「＋ 例外日を追加」</b> から個別設定できます（土日・祝日も選択可）。</p>
       <table class="time-table">
         <thead>
           <tr>
@@ -847,11 +673,45 @@
       </div>
 
       <div class="save-notice" id="saveNotice"></div>
+
+      <table class="rule-table">
+        <thead>
+          <tr><th>日の種類</th><th>開始・終了・休憩</th><th>備考欄</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>出勤日（平日）</td>
+            <td>曜日別設定の時間 / 休憩 1:00</td>
+            <td><span class="rule-tag" style="background:#dbeafe;color:#1e40af">在宅勤務（変更可）</span></td>
+          </tr>
+          <tr>
+            <td>例外日（休日出勤など）</td>
+            <td>例外設定した時間 / 休憩 1:00</td>
+            <td><span class="rule-tag" style="background:#fef9c3;color:#92400e">在宅勤務（変更可）</span></td>
+          </tr>
+          <tr>
+            <td>有給取得日</td>
+            <td>空欄</td>
+            <td><span class="rule-tag" style="background:#fce7f3;color:#be185d">私用により、休暇</span></td>
+          </tr>
+          <tr>
+            <td>祝日</td>
+            <td>空欄</td>
+            <td><span class="rule-tag" style="background:#fff5f5;color:#e53e3e">祝日</span></td>
+          </tr>
+          <tr>
+            <td>土日</td>
+            <td>空欄</td>
+            <td>空欄</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
     <!-- ② 有給取得日 -->
     <div class="card">
       <h2>有給取得日（任意）</h2>
+      <p class="card-desc">チェックを入れるとカレンダーが表示されます。有給を取得する日をクリックして選択してください。<b>土日・祝日も選択可能</b>です。</p>
       <label class="checkbox-label">
         <input type="checkbox" id="hasPaidLeave">
         有給を取得する日がある
@@ -863,6 +723,7 @@
     <!-- ③ Excelファイル選択 -->
     <div class="card">
       <h2>Excelファイルを選択</h2>
+      <p class="card-desc">会社から配布された<b>作業報告書（.xlsx）</b>を選択してください。選択後、右側の ✕ ボタンでやり直せます。</p>
       <div style="display:flex; align-items:flex-start; gap:8px;">
         <label class="file-area" id="fileArea" style="flex:1">
           <input type="file" name="excel_file" id="fileInput" accept=".xlsx">
@@ -894,15 +755,6 @@
   function getYear()  { return parseInt(document.getElementById('yearInput').value)  || {{ current_year }}; }
   function getMonth() { return parseInt(document.getElementById('monthInput').value) || {{ current_month }}; }
 
-  function toggleHelp() {
-    const card = document.getElementById('helpCard');
-    const btn  = document.getElementById('helpToggleBtn');
-    const open = card.classList.toggle('open');
-    btn.innerHTML = open
-      ? '<span>✕</span> 使い方を閉じる'
-      : '<span>?</span> 使い方を見る';
-    btn.style.background = open ? 'rgba(255,255,255,0.15)' : '';
-  }
   const selectedDays = new Set();
   let holidays = {};
 
