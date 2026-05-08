@@ -197,12 +197,12 @@ def write_excel():
             ws[f'{col_break}{row}'].value = t['break']
             ws[f'{col_break}{row}'].number_format = 'h:mm'
             ws[f'{col_note}{row}'].value = note_exceptions[day] if day in note_exceptions else note_workday
+        elif day in paid_leave:
+            ws[f'{col_note}{row}'].value = '私用により、休暇'
         elif weekday >= 5:
             pass  # 土日：空欄
         elif day in holidays:
             ws[f'{col_note}{row}'].value = '祝日'
-        elif day in paid_leave:
-            ws[f'{col_note}{row}'].value = '私用により、休暇'
         elif weekday in weekday_times:
             t = weekday_times[weekday]
             ws[f'{col_start}{row}'].value = t['start']

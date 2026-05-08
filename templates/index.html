@@ -434,15 +434,15 @@
       user-select: none;
     }
 
-    .cal-day:hover:not(.weekend):not(.holiday):not(.empty) {
+    .cal-day:hover:not(.empty):not(.selected) {
       background: #e8f0fe;
     }
 
     .cal-day.empty { visibility: hidden; }
 
-    .cal-day.weekend { color: #bbb; cursor: default; }
-    .cal-day.sunday  { color: #fca5a5; cursor: default; }
-    .cal-day.saturday { color: #93c5fd; cursor: default; }
+    .cal-day.weekend  { color: #bbb; cursor: default; }
+    .cal-day.sunday   { color: #fca5a5; }
+    .cal-day.saturday { color: #93c5fd; }
 
     /* 例外カレンダーでの土日（休日出勤選択用） */
     .cal-day.ex-selectable { cursor: pointer; }
@@ -451,7 +451,6 @@
     .cal-day.holiday {
       color: #e53e3e;
       background: #fff5f5;
-      cursor: default;
       font-size: 0.78rem;
     }
 
@@ -750,25 +749,17 @@
       const isSun     = dow === 0;
       const isSat     = dow === 6;
       const isHoliday = !!holidays[String(day)];
-      const isWeekend = isSun || isSat;
 
       let cls = 'cal-day';
-      let attrs = `data-day="${day}"`;
-
-      if (isWeekend) {
-        cls += isSun ? ' sunday' : ' saturday';
-      } else if (isHoliday) {
-        cls += ' holiday';
-        attrs += ` title="${holidays[String(day)]}"`;
-      } else {
-        attrs += ` onclick="toggleDay(this,${day})"`;
-      }
+      if (isSun)           cls += ' sunday';
+      else if (isSat)      cls += ' saturday';
+      else if (isHoliday)  cls += ' holiday';
 
       const label = isHoliday
         ? `<div style="font-size:0.72rem;line-height:1.2">${day}<br>${holidays[String(day)]}</div>`
         : day;
 
-      html += `<div class="${cls}" ${attrs}>${label}</div>`;
+      html += `<div class="${cls}" data-day="${day}" onclick="toggleDay(this,${day})">${label}</div>`;
     }
 
     html += '</div>';
