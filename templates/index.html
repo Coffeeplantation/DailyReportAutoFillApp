@@ -499,6 +499,25 @@
       word-break: break-all;
     }
 
+    /* マニュアルダウンロードボタン */
+    .manual-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 18px;
+      background: rgba(255,255,255,0.15);
+      border: 1.5px solid rgba(255,255,255,0.5);
+      border-radius: 20px;
+      color: #fff;
+      font-size: 0.83rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: background 0.2s;
+    }
+
+    .manual-btn::before { content: '📥'; font-size: 0.95rem; }
+    .manual-btn:hover { background: rgba(255,255,255,0.25); }
+
     /* カード内説明文 */
     .card-desc {
       font-size: 0.83rem;
@@ -598,6 +617,9 @@
       <span>年</span>
       <input type="number" id="monthInput" name="month" value="{{ current_month }}" min="1" max="12">
       <span>月分</span>
+    </div>
+    <div style="margin-top:10px;">
+      <a href="/api/manual" class="manual-btn">使い方ガイドをダウンロード（Excel）</a>
     </div>
   </header>
 
