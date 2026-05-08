@@ -618,9 +618,6 @@
       <input type="number" id="monthInput" name="month" value="{{ current_month }}" min="1" max="12">
       <span>月分</span>
     </div>
-    <div style="margin-top:10px;">
-      <a href="/api/manual" class="manual-btn">使い方ガイドをダウンロード（Excel）</a>
-    </div>
   </header>
 
   <form id="mainForm">
@@ -628,7 +625,6 @@
     <!-- ① 曜日別勤務時間 -->
     <div class="card">
       <h2>曜日別の勤務時間</h2>
-      <p class="card-desc">月〜金それぞれの<b>開始・終了・休憩時間</b>を入力してください。設定はブラウザに自動保存され、次回起動時にも引き継がれます。<br>残業・早退・休日出勤など通常と異なる日は、下の <b>「＋ 例外日を追加」</b> から個別設定できます（土日・祝日も選択可）。</p>
       <table class="time-table">
         <thead>
           <tr>
@@ -695,45 +691,11 @@
       </div>
 
       <div class="save-notice" id="saveNotice"></div>
-
-      <table class="rule-table">
-        <thead>
-          <tr><th>日の種類</th><th>開始・終了・休憩</th><th>備考欄</th></tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>出勤日（平日）</td>
-            <td>曜日別設定の時間 / 休憩 1:00</td>
-            <td><span class="rule-tag" style="background:#dbeafe;color:#1e40af">在宅勤務（変更可）</span></td>
-          </tr>
-          <tr>
-            <td>例外日（休日出勤など）</td>
-            <td>例外設定した時間 / 休憩 1:00</td>
-            <td><span class="rule-tag" style="background:#fef9c3;color:#92400e">在宅勤務（変更可）</span></td>
-          </tr>
-          <tr>
-            <td>有給取得日</td>
-            <td>空欄</td>
-            <td><span class="rule-tag" style="background:#fce7f3;color:#be185d">私用により、休暇</span></td>
-          </tr>
-          <tr>
-            <td>祝日</td>
-            <td>空欄</td>
-            <td><span class="rule-tag" style="background:#fff5f5;color:#e53e3e">祝日</span></td>
-          </tr>
-          <tr>
-            <td>土日</td>
-            <td>空欄</td>
-            <td>空欄</td>
-          </tr>
-        </tbody>
-      </table>
     </div>
 
     <!-- ② 有給取得日 -->
     <div class="card">
       <h2>有給取得日（任意）</h2>
-      <p class="card-desc">チェックを入れるとカレンダーが表示されます。有給を取得する日をクリックして選択してください。<b>土日・祝日も選択可能</b>です。</p>
       <label class="checkbox-label">
         <input type="checkbox" id="hasPaidLeave">
         有給を取得する日がある
@@ -745,7 +707,6 @@
     <!-- ③ Excelファイル選択 -->
     <div class="card">
       <h2>Excelファイルを選択</h2>
-      <p class="card-desc">会社から配布された<b>作業報告書（.xlsx）</b>を選択してください。選択後、右側の ✕ ボタンでやり直せます。</p>
       <div style="display:flex; align-items:flex-start; gap:8px;">
         <label class="file-area" id="fileArea" style="flex:1">
           <input type="file" name="excel_file" id="fileInput" accept=".xlsx">
