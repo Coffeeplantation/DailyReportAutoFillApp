@@ -3,3 +3,9 @@
 __pycache__/
 *.pyc
 *.pyo
+
+# デプロイ対象外（ガイド・資料生成スクリプト）
+*.xlsx
+*.pptx
+make_pptx.py
+make_report.py
