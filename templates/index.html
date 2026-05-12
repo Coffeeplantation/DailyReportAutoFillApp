@@ -21,11 +21,45 @@
     }
 
     header {
+      position: relative;
       text-align: center;
       margin-bottom: 28px;
       background: #1a56db;
       border-radius: 14px;
       padding: 20px 16px 16px;
+    }
+
+    .header-actions {
+      position: absolute;
+      top: 12px;
+      right: 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+    }
+
+    .reset-btn {
+      background: rgba(255,255,255,0.15);
+      border: 1.5px solid rgba(255,255,255,0.5);
+      border-radius: 20px;
+      color: #fff;
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 5px 14px;
+      cursor: pointer;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+
+    .reset-btn:hover { background: rgba(255,255,255,0.28); }
+
+    .autosave-notice {
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.85);
+      font-weight: 600;
+      height: 16px;
+      text-align: right;
     }
 
     header h1 {
@@ -769,6 +803,10 @@
 <body>
 <div class="app">
   <header>
+    <div class="header-actions">
+      <button type="button" class="reset-btn" onclick="resetSettings()">↩ 初期値にリセット</button>
+      <div class="autosave-notice" id="autosaveNotice"></div>
+    </div>
     <h1>日報自動入力アプリ</h1>
     <div class="month-selector">
       <input type="number" id="yearInput" name="year" value="{{ current_year }}" min="2000" max="2099">
@@ -882,7 +920,6 @@
         <button type="button" class="add-exception-btn" id="addExceptionBtn">＋ 例外日を追加</button>
       </div>
 
-      <div class="save-notice" id="saveNotice"></div>
     </div>
 
 
@@ -928,6 +965,8 @@
   const LABEL_IDS  = ['label_start','label_end','label_break','label_note','note_workday'];
   const STORAGE_KEY = 'dailyReport_timeSettings';
 
+  let _saveTimer = null;
+
   // 設定を localStorage に保存
   function saveSettings() {
     const settings = {};
@@ -942,9 +981,53 @@
       if (el) settings[id] = el.value;
     });
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-    const notice = document.getElementById('saveNotice');
-    notice.textContent = '✓ 保存しました';
-    setTimeout(() => { notice.textContent = ''; }, 2000);
+
+    const notice = document.getElementById('autosaveNotice');
+    notice.textContent = '✓ 自動保存しました';
+    if (_saveTimer) clearTimeout(_saveTimer);
+    _saveTimer = setTimeout(() => { notice.textContent = ''; }, 2000);
+  }
+
+  // 初期値にリセット
+  function resetSettings() {
+    if (!confirm('すべての設定を初期値に戻しますか？')) return;
+
+    localStorage.removeItem(STORAGE_KEY);
+
+    const defaults = {
+      monday_start: '09:00', monday_end: '17:30', monday_break: '01:00',
+      tuesday_start: '09:00', tuesday_end: '17:30', tuesday_break: '01:00',
+      wednesday_start: '09:00', wednesday_end: '17:30', wednesday_break: '01:00',
+      thursday_start: '09:00', thursday_end: '17:30', thursday_break: '01:00',
+      friday_start: '09:00', friday_end: '17:30', friday_break: '01:00',
+    };
+    Object.entries(defaults).forEach(([name, val]) => {
+      const el = document.querySelector(`[name="${name}"]`);
+      if (el) el.value = val;
+    });
+
+    document.getElementById('label_start').value  = '開始時間';
+    document.getElementById('label_end').value    = '終了時間';
+    document.getElementById('label_break').value  = '休憩時間';
+    document.getElementById('label_note').value   = '備考';
+    document.getElementById('note_workday').value = '在宅勤務';
+
+    document.getElementById('timeExceptionRows').innerHTML = '';
+    document.getElementById('exceptionRows').innerHTML     = '';
+    document.getElementById('sameNote').checked            = true;
+    document.getElementById('exceptionSection').style.display = 'none';
+
+    selectedDays.clear();
+    document.getElementById('paidLeaveDates').value        = '';
+    document.getElementById('hasPaidLeave').checked        = false;
+    document.getElementById('calendarContainer').style.display = 'none';
+
+    refreshSummary();
+
+    const notice = document.getElementById('autosaveNotice');
+    notice.textContent = '↩ リセットしました';
+    if (_saveTimer) clearTimeout(_saveTimer);
+    _saveTimer = setTimeout(() => { notice.textContent = ''; }, 2000);
   }
 
   // 設定を localStorage から読み込む
