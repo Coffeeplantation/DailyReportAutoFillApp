@@ -398,11 +398,28 @@
       border-radius: 10px;
     }
 
+    .hours-summary .summary-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
     .hours-summary .summary-title {
       font-size: 0.82rem;
       font-weight: 700;
       color: #1a56db;
-      margin-bottom: 10px;
+    }
+
+    .summary-total-inline {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #1a56db;
+      background: #fff;
+      border: 2px solid #bfdbfe;
+      border-radius: 8px;
+      padding: 4px 14px;
+      box-shadow: 0 1px 4px rgba(26,86,219,0.08);
     }
 
     .hours-summary-table {
@@ -440,6 +457,87 @@
     .hours-summary-table .overtime-cell.zero {
       color: #aaa;
       font-weight: 400;
+    }
+
+    .monthly-schedule {
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px dashed #bfdbfe;
+    }
+
+    .monthly-schedule-title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #555;
+      margin-bottom: 8px;
+    }
+
+    .monthly-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+    }
+
+    .monthly-table th {
+      background: #eff6ff;
+      color: #1e40af;
+      padding: 5px 4px;
+      text-align: center;
+      font-weight: 700;
+      font-size: 0.75rem;
+      border: 1px solid #dbeafe;
+    }
+
+    .monthly-table td {
+      padding: 4px 4px;
+      text-align: center;
+      border: 1px solid #f0f0f0;
+      white-space: nowrap;
+    }
+
+    .monthly-table td:first-child { font-weight: 600; width: 26px; }
+    .monthly-table td:last-child  { text-align: left; padding-left: 6px; font-size: 0.75rem; color: #555; }
+
+    .monthly-table tr.row-sun td { background: #fff5f5; color: #e53e3e; }
+    .monthly-table tr.row-sun td:not(:first-child):not(:nth-child(2)) { color: #ccc; }
+    .monthly-table tr.row-sat td { background: #f0f8ff; color: #3182ce; }
+    .monthly-table tr.row-sat td:not(:first-child):not(:nth-child(2)) { color: #ccc; }
+    .monthly-table tr.row-holiday td { background: #fff5f5; }
+    .monthly-table tr.row-holiday td:first-child { color: #e53e3e; }
+    .monthly-table tr.row-holiday td:nth-child(2) { color: #e53e3e; }
+    .monthly-table tr.row-paid td:last-child { color: #7c3aed; font-weight: 600; }
+    .monthly-table tr.row-work td:nth-child(6) { color: #1a56db; font-weight: 600; }
+
+    .monthly-total {
+      display: flex;
+      gap: 20px;
+      margin-top: 10px;
+      padding: 10px 12px;
+      background: #eff6ff;
+      border-radius: 8px;
+      border: 1px solid #bfdbfe;
+      font-size: 0.88rem;
+    }
+
+    .monthly-total .total-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .monthly-total .total-label {
+      color: #555;
+      font-weight: 600;
+    }
+
+    .monthly-total .total-value {
+      color: #1a56db;
+      font-weight: 700;
+      font-size: 1rem;
+    }
+
+    .monthly-total .total-value.overtime {
+      color: #d97706;
     }
 
     /* 有給チェックボックス */
@@ -725,17 +823,27 @@
         <button type="button" class="add-exception-btn" id="addTimeExceptionBtn">＋ 例外日を追加</button>
 
         <div class="hours-summary" id="hoursSummary">
-          <div class="summary-title">合計稼働時間</div>
-          <table class="hours-summary-table">
-            <thead>
-              <tr>
-                <th></th>
-                <th>就業時間</th>
-                <th>残業時間</th>
-              </tr>
-            </thead>
-            <tbody id="summaryBody"></tbody>
-          </table>
+          <div class="summary-header">
+            <div class="summary-title">合計稼働時間</div>
+            <div class="summary-total-inline" id="totalWorkDisplay">--</div>
+          </div>
+          <div class="monthly-schedule" id="monthlySchedule">
+            <div class="monthly-schedule-title">月間スケジュール</div>
+            <table class="monthly-table">
+              <thead>
+                <tr>
+                  <th>日</th>
+                  <th>曜</th>
+                  <th>開始</th>
+                  <th>終了</th>
+                  <th>休憩</th>
+                  <th>就業時間</th>
+                  <th>備考</th>
+                </tr>
+              </thead>
+              <tbody id="monthlyBody"></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -852,7 +960,7 @@
 
   // 時間入力・タイトル入力・備考入力が変わったら自動保存＆合計更新
   document.querySelectorAll('input[type="time"], .th-input, .note-input').forEach(el => {
-    el.addEventListener('change', () => { saveSettings(); updateWorkingHoursSummary(); });
+    el.addEventListener('change', () => { saveSettings(); refreshSummary(); });
   });
 
   // 祝日取得
@@ -864,7 +972,7 @@
     } catch (e) {
       holidays = {};
     }
-    updateWorkingHoursSummary();
+    refreshSummary();
   }
 
   // カレンダー生成
@@ -913,12 +1021,13 @@
       el.classList.add('selected');
     }
     document.getElementById('paidLeaveDates').value = [...selectedDays].sort((a,b)=>a-b).join(',');
-    updateWorkingHoursSummary();
+    refreshSummary();
   }
 
   // すべて同じ チェックボックス
   document.getElementById('sameNote').addEventListener('change', function () {
     document.getElementById('exceptionSection').style.display = this.checked ? 'none' : 'block';
+    buildMonthlySchedule();
   });
 
   // 備考 例外行を追加
@@ -1042,7 +1151,7 @@
       selectedDays.clear();
       document.getElementById('paidLeaveDates').value = '';
       holidays = {};
-      updateWorkingHoursSummary();
+      refreshSummary();
       const cb = document.getElementById('hasPaidLeave');
       if (cb.checked) {
         fetchHolidays().then(buildCalendar);
@@ -1255,9 +1364,98 @@
     tbody.appendChild(totalTr);
   }
 
+  function buildMonthlySchedule() {
+    const tbody = document.getElementById('monthlyBody');
+    if (!tbody) return;
+
+    const year = getYear(), month = getMonth();
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const DOW_KEYS  = [null,'monday','tuesday','wednesday','thursday','friday',null];
+    const DOW_NAMES = ['日','月','火','水','木','金','土'];
+
+    // 時間例外マップ
+    const exTimes = {};
+    document.querySelectorAll('.time-exception-row').forEach(row => {
+      const d = parseInt(row.querySelector('[name="time_ex_day"]')?.value);
+      if (!d) return;
+      exTimes[d] = {
+        start: row.querySelector('[name="time_ex_start"]')?.value || '',
+        end:   row.querySelector('[name="time_ex_end"]')?.value   || '',
+        brk:   row.querySelector('[name="time_ex_break"]')?.value || '',
+      };
+    });
+
+    // 備考例外マップ
+    const exNotes = {};
+    document.querySelectorAll('.exception-row').forEach(row => {
+      const d = parseInt(row.querySelector('[name="exception_day"]')?.value);
+      if (!d) return;
+      exNotes[d] = row.querySelector('[name="exception_note"]')?.value || '';
+    });
+
+    const sameNote    = document.getElementById('sameNote').checked;
+    const defaultNote = document.getElementById('note_workday').value || '';
+
+    let totalWorkMin = 0;
+    let totalOverMin = 0;
+
+    tbody.innerHTML = '';
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dow       = new Date(year, month - 1, d).getDay();
+      const isSun     = dow === 0;
+      const isSat     = dow === 6;
+      const isHoliday = !!holidays[String(d)];
+      const isPaid    = selectedDays.has(d);
+
+      let start = '', end = '', brk = '', workStr = '', note = '';
+      let rowCls = '';
+
+      if (isSun)       { rowCls = 'row-sun'; }
+      else if (isSat)  { rowCls = 'row-sat'; }
+      else if (isHoliday) {
+        rowCls = 'row-holiday';
+        note = holidays[String(d)];
+      } else if (isPaid) {
+        rowCls = 'row-paid';
+        note = '有給';
+      } else {
+        rowCls = 'row-work';
+        if (exTimes[d]) {
+          ({ start, end, brk } = exTimes[d]);
+        } else {
+          const key = DOW_KEYS[dow];
+          start = document.querySelector(`[name="${key}_start"]`)?.value || '';
+          end   = document.querySelector(`[name="${key}_end"]`)?.value   || '';
+          brk   = document.querySelector(`[name="${key}_break"]`)?.value || '';
+        }
+        const s = parseTimeToMin(start), e = parseTimeToMin(end), b = parseTimeToMin(brk);
+        if (s !== null && e !== null && b !== null && e > s) {
+          const wm = Math.max(0, e - s - b);
+          workStr = formatMin(wm);
+          totalWorkMin += wm;
+          totalOverMin += Math.max(0, wm - STANDARD_WORK_MIN);
+        }
+        note = (!sameNote && exNotes[d] != null) ? exNotes[d] : defaultNote;
+      }
+
+      const tr = document.createElement('tr');
+      tr.className = rowCls;
+      tr.innerHTML = `<td>${d}</td><td>${DOW_NAMES[dow]}</td><td>${start}</td><td>${end}</td><td>${brk}</td><td>${workStr}</td><td>${note}</td>`;
+      tbody.appendChild(tr);
+    }
+
+    // ヘッダー隣の合計表示
+    const totalEl = document.getElementById('totalWorkDisplay');
+    if (totalEl) totalEl.textContent = formatMin(totalWorkMin);
+  }
+
+  function refreshSummary() {
+    buildMonthlySchedule();
+  }
+
   // 起動時に保存済み設定を読み込む
   loadSettings();
-  updateWorkingHoursSummary();
+  refreshSummary();
 </script>
 </body>
 </html>
