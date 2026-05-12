@@ -390,6 +390,58 @@
       color: #aaa;
     }
 
+    .hours-summary {
+      margin-top: 14px;
+      padding: 14px 16px;
+      background: #f8faff;
+      border: 1px solid #dbeafe;
+      border-radius: 10px;
+    }
+
+    .hours-summary .summary-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #1a56db;
+      margin-bottom: 10px;
+    }
+
+    .hours-summary-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+
+    .hours-summary-table th {
+      color: #888;
+      font-weight: 600;
+      padding: 4px 8px;
+      text-align: center;
+      font-size: 0.78rem;
+    }
+
+    .hours-summary-table td {
+      padding: 5px 8px;
+      text-align: center;
+      border-top: 1px solid #e8f0ff;
+    }
+
+    .hours-summary-table td:first-child {
+      text-align: left;
+      font-weight: 600;
+      color: #555;
+      width: 52px;
+    }
+
+    .hours-summary-table .overtime-cell {
+      color: #d97706;
+      font-weight: 600;
+    }
+
+    .hours-summary-table .overtime-cell.zero {
+      color: #aaa;
+      font-weight: 400;
+    }
+
     /* 有給チェックボックス */
     .checkbox-label {
       display: flex;
@@ -671,6 +723,20 @@
       <div class="time-exc-section">
         <div id="timeExceptionRows"></div>
         <button type="button" class="add-exception-btn" id="addTimeExceptionBtn">＋ 例外日を追加</button>
+
+        <div class="hours-summary" id="hoursSummary">
+          <div class="summary-title">合計稼働時間</div>
+          <table class="hours-summary-table">
+            <thead>
+              <tr>
+                <th></th>
+                <th>就業時間</th>
+                <th>残業時間</th>
+              </tr>
+            </thead>
+            <tbody id="summaryBody"></tbody>
+          </table>
+        </div>
       </div>
 
       <div class="note-row">
@@ -784,9 +850,9 @@
     } catch (e) { /* 読み込み失敗時は初期値のまま */ }
   }
 
-  // 時間入力・タイトル入力・備考入力が変わったら自動保存
+  // 時間入力・タイトル入力・備考入力が変わったら自動保存＆合計更新
   document.querySelectorAll('input[type="time"], .th-input, .note-input').forEach(el => {
-    el.addEventListener('change', saveSettings);
+    el.addEventListener('change', () => { saveSettings(); updateWorkingHoursSummary(); });
   });
 
   // 祝日取得
@@ -798,6 +864,7 @@
     } catch (e) {
       holidays = {};
     }
+    updateWorkingHoursSummary();
   }
 
   // カレンダー生成
@@ -846,6 +913,7 @@
       el.classList.add('selected');
     }
     document.getElementById('paidLeaveDates').value = [...selectedDays].sort((a,b)=>a-b).join(',');
+    updateWorkingHoursSummary();
   }
 
   // すべて同じ チェックボックス
@@ -974,6 +1042,7 @@
       selectedDays.clear();
       document.getElementById('paidLeaveDates').value = '';
       holidays = {};
+      updateWorkingHoursSummary();
       const cb = document.getElementById('hasPaidLeave');
       if (cb.checked) {
         fetchHolidays().then(buildCalendar);
@@ -1106,8 +1175,89 @@
     });
   })();
 
+  // ── 合計稼働時間 計算・表示 ──
+  const STANDARD_WORK_MIN = 7 * 60 + 30; // 所定労働時間 7:30
+
+  function parseTimeToMin(val) {
+    if (!val) return null;
+    const [h, m] = val.split(':').map(Number);
+    return h * 60 + m;
+  }
+
+  function formatMin(min) {
+    if (min <= 0) return '0:00';
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    return `${h}:${String(m).padStart(2,'0')}`;
+  }
+
+  function getWeekdayWorkMin(dayKey) {
+    const s = parseTimeToMin(document.querySelector(`[name="${dayKey}_start"]`)?.value);
+    const e = parseTimeToMin(document.querySelector(`[name="${dayKey}_end"]`)?.value);
+    const b = parseTimeToMin(document.querySelector(`[name="${dayKey}_break"]`)?.value);
+    if (s === null || e === null || b === null || e <= s) return 0;
+    return Math.max(0, e - s - b);
+  }
+
+  function updateWorkingHoursSummary() {
+    const ROWS = [
+      { name: '月曜', key: 'monday',     dow: 1 },
+      { name: '火曜', key: 'tuesday',    dow: 2 },
+      { name: '水曜', key: 'wednesday',  dow: 3 },
+      { name: '木曜', key: 'thursday',   dow: 4 },
+      { name: '金曜', key: 'friday',     dow: 5 },
+    ];
+
+    const tbody = document.getElementById('summaryBody');
+    if (!tbody) return;
+
+    const year = getYear(), month = getMonth();
+    const daysInMonth = new Date(year, month, 0).getDate();
+
+    // 曜日ごとの稼働日数（祝日・有給を除く）
+    const counts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dow = new Date(year, month - 1, d).getDay();
+      if (dow === 0 || dow === 6) continue;
+      if (holidays[String(d)]) continue;
+      if (selectedDays.has(d)) continue;
+      counts[dow] = (counts[dow] || 0) + 1;
+    }
+
+    let totalWorkMin = 0;
+    let totalOverMin = 0;
+
+    tbody.innerHTML = '';
+    ROWS.forEach(({ name, key, dow }) => {
+      const workMin = getWeekdayWorkMin(key);
+      const overMin = Math.max(0, workMin - STANDARD_WORK_MIN);
+      const cnt     = counts[dow] || 0;
+      totalWorkMin += workMin * cnt;
+      totalOverMin += overMin * cnt;
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${name}</td>
+        <td>${workMin > 0 ? formatMin(workMin) : '--'}</td>
+        <td class="overtime-cell${overMin === 0 ? ' zero' : ''}">${workMin > 0 ? formatMin(overMin) : '--'}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    // 合計行
+    const totalTr = document.createElement('tr');
+    totalTr.style.cssText = 'border-top: 2px solid #bfdbfe;';
+    totalTr.innerHTML = `
+      <td style="font-weight:700;color:#1a56db">合計</td>
+      <td style="font-weight:700;color:#1a56db">${formatMin(totalWorkMin)}</td>
+      <td style="font-weight:700;color:${totalOverMin > 0 ? '#d97706' : '#aaa'}">${formatMin(totalOverMin)}</td>
+    `;
+    tbody.appendChild(totalTr);
+  }
+
   // 起動時に保存済み設定を読み込む
   loadSettings();
+  updateWorkingHoursSummary();
 </script>
 </body>
 </html>
