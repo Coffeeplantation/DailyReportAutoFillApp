@@ -180,6 +180,8 @@ def write_excel():
     col_break = find_column(ws, HEADER_ROW, label_break) or 'L'
     col_note  = find_column(ws, HEADER_ROW, label_note)  or 'S'
 
+    black_font = Font(color='000000')
+
     for day in range(1, last_day + 1):
         row = DATA_START_ROW + (day - 1)
         weekday = date(year, month, day).weekday()  # 0=月, 6=日
@@ -191,28 +193,36 @@ def write_excel():
         if day in time_exceptions:
             # 時間例外が最優先（土日・祝日・有給より上書き可能）
             t = time_exceptions[day]
-            ws[f'{col_start}{row}'].value = t['start']
-            ws[f'{col_start}{row}'].number_format = 'h:mm'
-            ws[f'{col_end}{row}'].value = t['end']
-            ws[f'{col_end}{row}'].number_format = 'h:mm'
-            ws[f'{col_break}{row}'].value = t['break']
-            ws[f'{col_break}{row}'].number_format = 'h:mm'
+            for col, val, fmt in [
+                (col_start, t['start'], 'h:mm'),
+                (col_end,   t['end'],   'h:mm'),
+                (col_break, t['break'], 'h:mm'),
+            ]:
+                ws[f'{col}{row}'].value = val
+                ws[f'{col}{row}'].number_format = fmt
+                ws[f'{col}{row}'].font = black_font
             ws[f'{col_note}{row}'].value = note_exceptions[day] if day in note_exceptions else note_workday
+            ws[f'{col_note}{row}'].font = black_font
         elif day in paid_leave:
             ws[f'{col_note}{row}'].value = '私用により、休暇'
+            ws[f'{col_note}{row}'].font = black_font
         elif weekday >= 5:
             pass  # 土日：空欄
         elif day in holidays:
             ws[f'{col_note}{row}'].value = '祝日'
+            ws[f'{col_note}{row}'].font = black_font
         elif weekday in weekday_times:
             t = weekday_times[weekday]
-            ws[f'{col_start}{row}'].value = t['start']
-            ws[f'{col_start}{row}'].number_format = 'h:mm'
-            ws[f'{col_end}{row}'].value = t['end']
-            ws[f'{col_end}{row}'].number_format = 'h:mm'
-            ws[f'{col_break}{row}'].value = t['break']
-            ws[f'{col_break}{row}'].number_format = 'h:mm'
+            for col, val, fmt in [
+                (col_start, t['start'], 'h:mm'),
+                (col_end,   t['end'],   'h:mm'),
+                (col_break, t['break'], 'h:mm'),
+            ]:
+                ws[f'{col}{row}'].value = val
+                ws[f'{col}{row}'].number_format = fmt
+                ws[f'{col}{row}'].font = black_font
             ws[f'{col_note}{row}'].value = note_exceptions[day] if day in note_exceptions else note_workday
+            ws[f'{col_note}{row}'].font = black_font
 
     # カーソルをA1に設定
     try:

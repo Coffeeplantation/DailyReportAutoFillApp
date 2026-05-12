@@ -366,6 +366,14 @@
       border-top: 1px dashed #e5e7eb;
     }
 
+    .paid-leave-section {
+      margin-top: 14px;
+      padding: 12px 14px;
+      border: 1px dashed #a5b4fc;
+      border-radius: 10px;
+      background: #fafaff;
+    }
+
     .time-exception-row {
       display: flex;
       align-items: center;
@@ -822,6 +830,16 @@
         <div id="timeExceptionRows"></div>
         <button type="button" class="add-exception-btn" id="addTimeExceptionBtn">＋ 例外日を追加</button>
 
+        <div class="paid-leave-section">
+          <div class="sec-label" style="margin-bottom:8px;">有給取得日（任意）</div>
+          <label class="checkbox-label">
+            <input type="checkbox" id="hasPaidLeave">
+            有給を取得する日がある
+          </label>
+          <div id="calendarContainer" style="display:none"></div>
+          <input type="hidden" name="paid_leave_dates" id="paidLeaveDates">
+        </div>
+
         <div class="hours-summary" id="hoursSummary">
           <div class="summary-header">
             <div class="summary-title">合計稼働時間</div>
@@ -867,16 +885,6 @@
       <div class="save-notice" id="saveNotice"></div>
     </div>
 
-    <!-- ② 有給取得日 -->
-    <div class="card">
-      <h2>有給取得日（任意）</h2>
-      <label class="checkbox-label">
-        <input type="checkbox" id="hasPaidLeave">
-        有給を取得する日がある
-      </label>
-      <div id="calendarContainer" style="display:none"></div>
-      <input type="hidden" name="paid_leave_dates" id="paidLeaveDates">
-    </div>
 
     <!-- ③ Excelファイル選択 -->
     <div class="card">
@@ -1031,7 +1039,8 @@
   });
 
   // 備考 例外行を追加
-  function addExceptionRow(day = '', note = '') {
+  function addExceptionRow(day = '', note = null) {
+    if (note === null) note = document.getElementById('note_workday').value || '';
     const month = getMonth();
     const label = day ? `${month}月${day}日` : '日付を選択';
     const row = document.createElement('div');
@@ -1042,12 +1051,20 @@
       <input type="hidden" class="ex-day-input" name="exception_day" value="${day}">
       <input type="text" class="exception-note-input" name="exception_note"
              placeholder="備考内容" value="${note}">
-      <button type="button" class="del-btn" onclick="this.closest('.exception-row').remove()">✕</button>
+      <button type="button" class="del-btn" onclick="this.closest('.exception-row').remove(); buildMonthlySchedule()">✕</button>
     `;
     document.getElementById('exceptionRows').appendChild(row);
   }
 
   document.getElementById('addExceptionBtn').addEventListener('click', () => addExceptionRow());
+
+  // 例外備考の入力変更 → 月間スケジュール再描画（動的行なのでイベント委譲）
+  document.getElementById('exceptionRows').addEventListener('input', (e) => {
+    if (e.target.matches('.exception-note-input')) buildMonthlySchedule();
+  });
+  document.getElementById('timeExceptionRows').addEventListener('change', (e) => {
+    if (e.target.type === 'time') buildMonthlySchedule();
+  });
 
   // 時間 例外行を追加
   function addTimeExceptionRow(day = '', start = '09:00', end = '18:00', brk = '01:00') {
@@ -1065,7 +1082,7 @@
       <input type="time" name="time_ex_end" value="${end}">
       <span class="time-exc-label">休憩</span>
       <input type="time" name="time_ex_break" value="${brk}">
-      <button type="button" class="del-btn" onclick="this.closest('.time-exception-row').remove()">✕</button>
+      <button type="button" class="del-btn" onclick="this.closest('.time-exception-row').remove(); buildMonthlySchedule()">✕</button>
     `;
     document.getElementById('timeExceptionRows').appendChild(row);
   }
@@ -1142,6 +1159,7 @@
     btn.classList.add('selected');
     exCalTargetRow.querySelector('.ex-day-input').value = day;
     closeExCal();
+    buildMonthlySchedule();
   }
 
   // 年月変更時：カレンダーと例外行をリセット
@@ -1151,11 +1169,10 @@
       selectedDays.clear();
       document.getElementById('paidLeaveDates').value = '';
       holidays = {};
-      refreshSummary();
       const cb = document.getElementById('hasPaidLeave');
-      if (cb.checked) {
-        fetchHolidays().then(buildCalendar);
-      }
+      fetchHolidays().then(() => {
+        if (cb.checked) buildCalendar();
+      });
       // 全例外行の日付ボタン表示を更新（月変更後に存在しない日付の行は削除）
       const month = getMonth();
       const year2 = getYear();
@@ -1264,25 +1281,6 @@
     document.getElementById('errorMsg').style.display = 'none';
   }
 
-  // 時間ピッカーを分の選択後に自動で閉じる
-  (function () {
-    const timers  = new WeakMap();
-    const prevVal = new WeakMap();
-
-    document.addEventListener('focus', function (e) {
-      if (e.target.type === 'time') prevVal.set(e.target, e.target.value);
-    }, true);
-
-    document.addEventListener('input', function (e) {
-      if (e.target.type !== 'time' || !e.target.value) return;
-      const el   = e.target;
-      const prev = prevVal.get(el) || '';
-      const curr = el.value;
-      if (timers.has(el)) clearTimeout(timers.get(el));
-      timers.set(el, setTimeout(() => { el.blur(); timers.delete(el); }, 300));
-      prevVal.set(el, curr);
-    });
-  })();
 
   // ── 合計稼働時間 計算・表示 ──
   const STANDARD_WORK_MIN = 7 * 60 + 30; // 所定労働時間 7:30
@@ -1410,24 +1408,34 @@
       let start = '', end = '', brk = '', workStr = '', note = '';
       let rowCls = '';
 
-      if (isSun)       { rowCls = 'row-sun'; }
-      else if (isSat)  { rowCls = 'row-sat'; }
-      else if (isHoliday) {
+      if (exTimes[d]) {
+        // 時間例外は最優先（土日・祝日・有給より上書き）
+        rowCls = 'row-work';
+        ({ start, end, brk } = exTimes[d]);
+        const s = parseTimeToMin(start), e = parseTimeToMin(end), b = parseTimeToMin(brk);
+        if (s !== null && e !== null && b !== null && e > s) {
+          const wm = Math.max(0, e - s - b);
+          workStr = formatMin(wm);
+          totalWorkMin += wm;
+          totalOverMin += Math.max(0, wm - STANDARD_WORK_MIN);
+        }
+        note = (!sameNote && exNotes[d] != null) ? exNotes[d] : defaultNote;
+      } else if (isSun) {
+        rowCls = 'row-sun';
+      } else if (isSat)  {
+        rowCls = 'row-sat';
+      } else if (isHoliday) {
         rowCls = 'row-holiday';
-        note = holidays[String(d)];
+        note = '祝日';
       } else if (isPaid) {
         rowCls = 'row-paid';
-        note = '有給';
+        note = '私用により、休暇';
       } else {
         rowCls = 'row-work';
-        if (exTimes[d]) {
-          ({ start, end, brk } = exTimes[d]);
-        } else {
-          const key = DOW_KEYS[dow];
-          start = document.querySelector(`[name="${key}_start"]`)?.value || '';
-          end   = document.querySelector(`[name="${key}_end"]`)?.value   || '';
-          brk   = document.querySelector(`[name="${key}_break"]`)?.value || '';
-        }
+        const key = DOW_KEYS[dow];
+        start = document.querySelector(`[name="${key}_start"]`)?.value || '';
+        end   = document.querySelector(`[name="${key}_end"]`)?.value   || '';
+        brk   = document.querySelector(`[name="${key}_break"]`)?.value || '';
         const s = parseTimeToMin(start), e = parseTimeToMin(end), b = parseTimeToMin(brk);
         if (s !== null && e !== null && b !== null && e > s) {
           const wm = Math.max(0, e - s - b);
@@ -1453,9 +1461,10 @@
     buildMonthlySchedule();
   }
 
-  // 起動時に保存済み設定を読み込む
+  // 起動時に保存済み設定を読み込み、祝日を自動取得
   loadSettings();
   refreshSummary();
+  fetchHolidays();
 </script>
 </body>
 </html>
