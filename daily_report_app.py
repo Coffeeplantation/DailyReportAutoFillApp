@@ -108,10 +108,12 @@ class DailyReportApp:
         self.root.title('日報自動入力アプリ')
         self.root.geometry('660x880')
         self.root.minsize(580, 520)
+        self._initializing = True
         self.settings = self._load_settings()
         self._build_ui()
         self._apply_settings()
         self._refresh_schedule()
+        self.root.after(700, lambda: setattr(self, '_initializing', False))
         self.root.mainloop()
 
     # ── 設定の保存・読み込み ──────────────────────────────────────────────────
@@ -157,6 +159,7 @@ class DailyReportApp:
         self.label_note_var.set(labels.get('note',   '備考'))
         self.note_workday_var.set(self.settings.get('note_workday', '在宅勤務'))
         self.same_note_var.set(self.settings.get('same_note', True))
+        self._on_same_note_change_silent()
 
     # ── UI 構築 ──────────────────────────────────────────────────────────────
 
@@ -174,7 +177,14 @@ class DailyReportApp:
 
         pad = dict(padx=12, pady=5)
 
-        ttk.Label(container, text='日報自動入力アプリ', font=('', 14, 'bold')).pack(pady=(14, 4))
+        # タイトル行：タイトル + 自動保存通知 + リセットボタン
+        title_row = ttk.Frame(container)
+        title_row.pack(fill='x', padx=12, pady=(14, 4))
+        ttk.Label(title_row, text='日報自動入力アプリ', font=('', 14, 'bold')).pack(side='left')
+        ttk.Button(title_row, text='↩ 初期値にリセット', command=self._reset_settings).pack(side='right', padx=4)
+        self.autosave_notice_var = tk.StringVar(value='')
+        ttk.Label(title_row, textvariable=self.autosave_notice_var,
+                  foreground='#2d7a2d').pack(side='right', padx=8)
 
         self._build_ym(container, pad)
         self._build_weekday(container, pad)
@@ -228,7 +238,7 @@ class DailyReportApp:
             row_vars = {}
             for col, key in enumerate(('start', 'end', 'break'), 1):
                 var = tk.StringVar()
-                var.trace_add('write', lambda *_: self._schedule_refresh())
+                var.trace_add('write', lambda *_: self._on_input_change())
                 ttk.Entry(f, textvariable=var, width=8, justify='center').grid(
                     row=i + 1, column=col, padx=3, pady=4)
                 row_vars[key] = var
@@ -239,34 +249,17 @@ class DailyReportApp:
     def _build_exceptions(self, parent, pad):
         outer = ttk.LabelFrame(parent, text='例外日（残業・早退・休日出勤など）')
         outer.pack(fill='x', **pad)
-        self.ex_var = tk.BooleanVar()
-        ttk.Checkbutton(outer, text='例外日がある', variable=self.ex_var,
-                        command=self._toggle_ex).pack(anchor='w', padx=8, pady=4)
 
-        self.ex_content = ttk.Frame(outer)
-
-        hdr = ttk.Frame(self.ex_content)
-        hdr.pack(fill='x', padx=2)
+        hdr = ttk.Frame(outer)
+        hdr.pack(fill='x', padx=8, pady=(4, 0))
         for col, (txt, w) in enumerate([('日付', 11), ('開始', 7), ('終了', 7), ('休憩', 7), ('備考', 14)]):
             ttk.Label(hdr, text=txt, width=w, anchor='center').grid(row=0, column=col, padx=2)
 
-        self.ex_rows_frame = ttk.Frame(self.ex_content)
-        self.ex_rows_frame.pack(fill='x')
+        self.ex_rows_frame = ttk.Frame(outer)
+        self.ex_rows_frame.pack(fill='x', padx=8)
 
-        ttk.Button(self.ex_content, text='＋ 例外日を追加', command=self._add_ex_row).pack(pady=5)
+        ttk.Button(outer, text='＋ 例外日を追加', command=self._add_ex_row).pack(pady=5)
         self.exception_rows = []
-
-    def _toggle_ex(self):
-        if self.ex_var.get():
-            self.ex_content.pack(fill='x', padx=8, pady=(0, 6))
-            if not self.exception_rows:
-                self._add_ex_row()
-        else:
-            self.ex_content.pack_forget()
-            for row in self.exception_rows:
-                row['frame'].destroy()
-            self.exception_rows.clear()
-        self._schedule_refresh()
 
     def _add_ex_row(self):
         rf = ttk.Frame(self.ex_rows_frame)
@@ -318,7 +311,7 @@ class DailyReportApp:
         outer = ttk.LabelFrame(parent, text='有給取得日')
         outer.pack(fill='x', **pad)
         self.pl_var = tk.BooleanVar()
-        ttk.Checkbutton(outer, text='有給取得日がある', variable=self.pl_var,
+        ttk.Checkbutton(outer, text='有給を取得する日がある', variable=self.pl_var,
                         command=self._toggle_pl).pack(anchor='w', padx=8, pady=4)
         self.pl_content = ttk.Frame(outer)
         self.day_check_vars = {}
@@ -445,6 +438,16 @@ class DailyReportApp:
         same_note    = self.same_note_var.get()
         note_workday = self.note_workday_var.get().strip() or '在宅勤務'
 
+        # 日付別備考（same_note=False のとき使用）
+        nex = {}
+        if not same_note and hasattr(self, 'note_exception_rows'):
+            for row in self.note_exception_rows:
+                ds = row['day'].get()
+                if ds and ds.isdigit():
+                    n = row['note'].get().strip()
+                    if n:
+                        nex[int(ds)] = n
+
         hols = {}
         for d in range(1, last + 1):
             name = jpholiday.is_holiday_name(date(year, month, d))
@@ -467,7 +470,10 @@ class DailyReportApp:
                 start, end, brk = t['start'], t['end'], t['break']
                 work_str = fmt_min(t['work'])
                 total_work += t['work']
-                note = note_workday if same_note else t['note']
+                if same_note:
+                    note = note_workday
+                else:
+                    note = t['note'] or nex.get(day, note_workday)
                 tag = 'exc'
             elif wd == 6:
                 tag = 'sun'
@@ -484,7 +490,7 @@ class DailyReportApp:
                 start, end, brk = t['start'], t['end'], t['break']
                 work_str = fmt_min(t['work'])
                 total_work += t['work']
-                note = note_workday
+                note = note_workday if same_note else nex.get(day, note_workday)
                 tag = 'work'
 
             self.schedule_tree.insert('', 'end',
@@ -525,11 +531,69 @@ class DailyReportApp:
         note_row.pack(fill='x', pady=(8, 2))
         ttk.Label(note_row, text='出勤日の備考:').pack(side='left')
         ttk.Entry(note_row, textvariable=self.note_workday_var, width=18).pack(side='left', padx=6)
-        ttk.Checkbutton(note_row, text='例外以外は同じ備考',
+        ttk.Checkbutton(note_row, text='出勤日はすべて同じ',
                         variable=self.same_note_var,
-                        command=self._schedule_refresh).pack(side='left', padx=4)
+                        command=self._on_same_note_change).pack(side='left', padx=4)
 
-        self.note_workday_var.trace_add('write', lambda *_: self._schedule_refresh())
+        # 日付別備考フレーム（same_note=False のとき表示）
+        self.note_ex_frame = ttk.Frame(inner)
+
+        nex_hdr = ttk.Frame(self.note_ex_frame)
+        nex_hdr.pack(fill='x', pady=(6, 2))
+        ttk.Label(nex_hdr, text='日付別備考（出勤日）:', font=('', 8)).pack(side='left')
+        ttk.Button(nex_hdr, text='＋ 追加', command=self._add_note_ex_row).pack(side='left', padx=6)
+
+        self.note_ex_rows_frame = ttk.Frame(self.note_ex_frame)
+        self.note_ex_rows_frame.pack(fill='x')
+        self.note_exception_rows = []
+
+        self.note_workday_var.trace_add('write', lambda *_: self._on_input_change())
+        for var in (self.label_start_var, self.label_end_var, self.label_break_var, self.label_note_var):
+            var.trace_add('write', lambda *_: self._on_input_change())
+
+    def _on_same_note_change(self):
+        self._on_same_note_change_silent()
+        self._on_input_change()
+
+    def _on_same_note_change_silent(self):
+        if self.same_note_var.get():
+            self.note_ex_frame.pack_forget()
+        else:
+            self.note_ex_frame.pack(fill='x', pady=(4, 0))
+            if hasattr(self, 'note_exception_rows') and not self.note_exception_rows:
+                self._add_note_ex_row()
+
+    def _add_note_ex_row(self):
+        rf = ttk.Frame(self.note_ex_rows_frame)
+        rf.pack(fill='x', pady=2)
+
+        day_v  = tk.StringVar(value='')
+        note_v = tk.StringVar()
+        note_v.trace_add('write', lambda *_: self._schedule_refresh())
+
+        date_btn = ttk.Button(rf, text='日付を選択', width=11)
+        date_btn.grid(row=0, column=0, padx=2)
+
+        row_data = {'frame': rf, 'day': day_v, 'date_btn': date_btn, 'note': note_v}
+
+        def open_cal(r=row_data):
+            def on_select(d, r=r):
+                r['day'].set(str(d))
+                m = self.month_var.get()
+                r['date_btn'].config(text=f'{m}月{d}日')
+                self._schedule_refresh()
+            CalendarDialog(self.root, self.year_var.get(), self.month_var.get(), on_select)
+
+        date_btn.config(command=open_cal)
+        ttk.Entry(rf, textvariable=note_v, width=24).grid(row=0, column=1, padx=4, sticky='ew')
+
+        def remove(r=row_data):
+            r['frame'].destroy()
+            self.note_exception_rows.remove(r)
+            self._schedule_refresh()
+
+        ttk.Button(rf, text='✕', width=2, command=remove).grid(row=0, column=2, padx=2)
+        self.note_exception_rows.append(row_data)
 
     # ── Excelファイル選択 ─────────────────────────────────────────────────────
 
@@ -538,9 +602,15 @@ class DailyReportApp:
         f.pack(fill='x', **pad)
         inner = ttk.Frame(f)
         inner.pack(fill='x', padx=8, pady=6)
+        inner.columnconfigure(0, weight=1)
+
         self.file_var = tk.StringVar()
-        ttk.Entry(inner, textvariable=self.file_var, width=46).pack(side='left', expand=True, fill='x')
-        ttk.Button(inner, text='参照...', command=self._browse).pack(side='left', padx=6)
+        ttk.Entry(inner, textvariable=self.file_var, width=44).grid(
+            row=0, column=0, sticky='ew', padx=(0, 4))
+        ttk.Button(inner, text='参照...', command=self._browse).grid(row=0, column=1, padx=2)
+        self.clear_file_btn = ttk.Button(inner, text='✕', width=2, command=self._clear_file)
+
+        self.file_var.trace_add('write', lambda *_: self._update_clear_btn())
 
     def _browse(self):
         p = filedialog.askopenfilename(
@@ -549,6 +619,60 @@ class DailyReportApp:
         )
         if p:
             self.file_var.set(p)
+
+    def _update_clear_btn(self):
+        if self.file_var.get():
+            self.clear_file_btn.grid(row=0, column=2, padx=2)
+        else:
+            self.clear_file_btn.grid_remove()
+
+    def _clear_file(self):
+        self.file_var.set('')
+
+    # ── 自動保存・通知・リセット ──────────────────────────────────────────────
+
+    def _reset_settings(self):
+        for i in range(5):
+            for k, v in DEFAULT_TIMES.items():
+                self.time_vars[i][k].set(v)
+        self.label_start_var.set('開始時間')
+        self.label_end_var.set('終了時間')
+        self.label_break_var.set('休憩時間')
+        self.label_note_var.set('備考')
+        self.note_workday_var.set('在宅勤務')
+        self.same_note_var.set(True)
+        self._on_same_note_change_silent()
+        for row in self.exception_rows[:]:
+            row['frame'].destroy()
+        self.exception_rows.clear()
+        for row in self.note_exception_rows[:]:
+            row['frame'].destroy()
+        self.note_exception_rows.clear()
+        self.pl_var.set(False)
+        self._toggle_pl()
+        self._show_notice('↩ リセットしました')
+        self._refresh_schedule()
+
+    def _show_notice(self, text):
+        self.autosave_notice_var.set(text)
+        if hasattr(self, '_notice_id'):
+            self.root.after_cancel(self._notice_id)
+        self._notice_id = self.root.after(2000, lambda: self.autosave_notice_var.set(''))
+
+    def _schedule_auto_save(self):
+        if self._initializing:
+            return
+        if hasattr(self, '_autosave_id'):
+            self.root.after_cancel(self._autosave_id)
+        self._autosave_id = self.root.after(500, self._do_auto_save)
+
+    def _do_auto_save(self):
+        self._save_settings()
+        self._show_notice('✓ 自動保存しました')
+
+    def _on_input_change(self):
+        self._schedule_refresh()
+        self._schedule_auto_save()
 
     # ── 書き込み処理 ──────────────────────────────────────────────────────────
 
@@ -576,7 +700,7 @@ class DailyReportApp:
 
         paid = {d for d, v in self.day_check_vars.items() if v.get()} if self.pl_var.get() else set()
 
-        tex, nex = {}, {}
+        tex = {}
         for row in self.exception_rows:
             ds = row['day'].get()
             if not (ds and ds.isdigit()):
@@ -586,10 +710,19 @@ class DailyReportApp:
             e = parse_time(row['end'].get())
             b = parse_time(row['break'].get()) or time(1, 0)
             if s and e:
-                tex[d] = {'start': s, 'end': e, 'break': b}
-            n = row['note'].get().strip()
-            if n:
-                nex[d] = n
+                tex[d] = {'start': s, 'end': e, 'break': b, 'note': row['note'].get().strip()}
+
+        same_note    = self.same_note_var.get()
+        note_workday = self.note_workday_var.get().strip() or '在宅勤務'
+
+        nex = {}
+        if not same_note:
+            for row in self.note_exception_rows:
+                ds = row['day'].get()
+                if ds and ds.isdigit():
+                    n = row['note'].get().strip()
+                    if n:
+                        nex[int(ds)] = n
 
         _, last = cal_module.monthrange(year, month)
         hols = {d for d in range(1, last + 1) if jpholiday.is_holiday(date(year, month, d))}
@@ -598,8 +731,6 @@ class DailyReportApp:
         label_end    = self.label_end_var.get().strip()    or '終了時間'
         label_break  = self.label_break_var.get().strip()  or '休憩時間'
         label_note   = self.label_note_var.get().strip()   or '備考'
-        note_workday = self.note_workday_var.get().strip() or '在宅勤務'
-        same_note    = self.same_note_var.get()
 
         try:
             wb = openpyxl.load_workbook(path)
@@ -629,7 +760,10 @@ class DailyReportApp:
                     ws[f'{c}{r}'].value         = v
                     ws[f'{c}{r}'].number_format = 'h:mm'
                     ws[f'{c}{r}'].font          = blk
-                note = note_workday if same_note else nex.get(day, note_workday)
+                if same_note:
+                    note = note_workday
+                else:
+                    note = t['note'] or nex.get(day, note_workday)
                 ws[f'{cn}{r}'].value = note
                 ws[f'{cn}{r}'].font  = blk
             elif day in paid:
