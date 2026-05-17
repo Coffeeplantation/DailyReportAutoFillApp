@@ -100,7 +100,7 @@ class DailyReportApp:
         ttk.Spinbox(inner, from_=2000, to=2099, textvariable=self.year_var,  width=6).pack(side='left')
         ttk.Label(inner, text=' 年 ').pack(side='left')
         ttk.Spinbox(inner, from_=1,    to=12,   textvariable=self.month_var, width=4).pack(side='left')
-        ttk.Label(inner, text(' 月')).pack(side='left')
+        ttk.Label(inner, text=' 月').pack(side='left')
 
     def _build_weekday(self, parent, pad):
         f = ttk.LabelFrame(parent, text='曜日別勤務時間  （形式: HH:MM）')
