@@ -1,0 +1,31 @@
+name: Windows EXE ビルド
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python セットアップ
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 依存パッケージのインストール
+        run: pip install pyinstaller openpyxl jpholiday
+
+      - name: EXE ビルド
+        run: pyinstaller --onefile --windowed --name "日報自動入力アプリ" daily_report_app.py
+
+      - name: 成果物をアップロード
+        uses: actions/upload-artifact@v4
+        with:
+          name: 日報自動入力アプリ
+          path: dist/日報自動入力アプリ.exe
+          retention-days: 30
