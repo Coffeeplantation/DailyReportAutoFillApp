@@ -10,7 +10,7 @@ import jpholiday
 
 WEEKDAY_NAMES = ['月曜日', '火曜日', '水曜日', '木曜日', '金曜日']
 SETTINGS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'settings.json')
-DEFAULT_TIMES = {'start': '09:00', 'end': '18:00', 'break': '01:00'}
+DEFAULT_TIMES = {'start': '09:00', 'end': '17:30', 'break': '01:00'}
 
 
 def parse_time(s):
@@ -27,8 +27,8 @@ class DailyReportApp:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title('日報自動入力アプリ')
-        self.root.geometry('560x620')
-        self.root.minsize(520, 400)
+        self.root.geometry('600x760')
+        self.root.minsize(540, 480)
         self.settings = self._load_settings()
         self._build_ui()
         self._apply_settings()
@@ -48,7 +48,15 @@ class DailyReportApp:
             'weekday_times': {
                 str(i): {k: self.time_vars[i][k].get() for k in ('start', 'end', 'break')}
                 for i in range(5)
-            }
+            },
+            'labels': {
+                'start': self.label_start_var.get(),
+                'end':   self.label_end_var.get(),
+                'break': self.label_break_var.get(),
+                'note':  self.label_note_var.get(),
+            },
+            'note_workday': self.note_workday_var.get(),
+            'same_note':    self.same_note_var.get(),
         }
         try:
             with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
@@ -62,11 +70,17 @@ class DailyReportApp:
             t = wt.get(str(i), DEFAULT_TIMES)
             for k in ('start', 'end', 'break'):
                 self.time_vars[i][k].set(t.get(k, DEFAULT_TIMES[k]))
+        labels = self.settings.get('labels', {})
+        self.label_start_var.set(labels.get('start', '開始時間'))
+        self.label_end_var.set(labels.get('end',   '終了時間'))
+        self.label_break_var.set(labels.get('break', '休憩時間'))
+        self.label_note_var.set(labels.get('note',  '備考'))
+        self.note_workday_var.set(self.settings.get('note_workday', '在宅勤務'))
+        self.same_note_var.set(self.settings.get('same_note', True))
 
     # ── UI ────────────────────────────────────────────────────────────────
 
     def _build_ui(self):
-        # スクロール可能なメインエリア
         canvas = tk.Canvas(self.root, borderwidth=0, highlightthickness=0)
         sb = ttk.Scrollbar(self.root, orient='vertical', command=canvas.yview)
         canvas.configure(yscrollcommand=sb.set)
@@ -84,8 +98,9 @@ class DailyReportApp:
 
         self._build_ym(container, pad)
         self._build_weekday(container, pad)
-        self._build_paid_leave(container, pad)
         self._build_exceptions(container, pad)
+        self._build_paid_leave(container, pad)
+        self._build_labels(container, pad)
         self._build_file(container, pad)
         ttk.Button(container, text='入力完了・保存', command=self._execute, width=22).pack(pady=14)
 
@@ -167,13 +182,11 @@ class DailyReportApp:
 
         self.ex_content = ttk.Frame(outer)
 
-        # ヘッダー（固定）
         hdr = ttk.Frame(self.ex_content)
         hdr.pack(fill='x', padx=2)
         for col, (txt, w) in enumerate([('日付', 5), ('開始', 7), ('終了', 7), ('休憩', 7), ('備考', 14)]):
             ttk.Label(hdr, text=txt, width=w, anchor='center').grid(row=0, column=col, padx=2)
 
-        # 行を追加していくエリア
         self.ex_rows_frame = ttk.Frame(self.ex_content)
         self.ex_rows_frame.pack(fill='x')
 
@@ -201,7 +214,7 @@ class DailyReportApp:
         start_v = tk.StringVar()
         end_v   = tk.StringVar()
         break_v = tk.StringVar(value='01:00')
-        note_v  = tk.StringVar(value='在宅勤務')
+        note_v  = tk.StringVar(value=self.note_workday_var.get() if hasattr(self, 'note_workday_var') else '在宅勤務')
 
         ttk.Spinbox(rf, from_=1, to=last, textvariable=day_v,   width=5).grid(row=0, column=0, padx=2)
         ttk.Entry(rf, textvariable=start_v, width=7, justify='center').grid(row=0, column=1, padx=2)
@@ -220,6 +233,40 @@ class DailyReportApp:
 
         ttk.Button(rf, text='✕', width=2, command=remove).grid(row=0, column=5, padx=4)
         self.exception_rows.append(row_data)
+
+    def _build_labels(self, parent, pad):
+        f = ttk.LabelFrame(parent, text='Excel列ラベル / 備考設定')
+        f.pack(fill='x', **pad)
+
+        self.label_start_var  = tk.StringVar(value='開始時間')
+        self.label_end_var    = tk.StringVar(value='終了時間')
+        self.label_break_var  = tk.StringVar(value='休憩時間')
+        self.label_note_var   = tk.StringVar(value='備考')
+        self.note_workday_var = tk.StringVar(value='在宅勤務')
+        self.same_note_var    = tk.BooleanVar(value=True)
+
+        inner = ttk.Frame(f)
+        inner.pack(fill='x', padx=10, pady=6)
+
+        lbl_row = ttk.Frame(inner)
+        lbl_row.pack(fill='x', pady=2)
+        for txt, var, w in [
+            ('開始時間列', self.label_start_var,  9),
+            ('終了時間列', self.label_end_var,    9),
+            ('休憩時間列', self.label_break_var,  9),
+            ('備考列',     self.label_note_var,   7),
+        ]:
+            col = ttk.Frame(lbl_row)
+            col.pack(side='left', padx=6)
+            ttk.Label(col, text=txt, font=('', 8)).pack()
+            ttk.Entry(col, textvariable=var, width=w).pack()
+
+        note_row = ttk.Frame(inner)
+        note_row.pack(fill='x', pady=(8, 2))
+        ttk.Label(note_row, text='出勤日の備考:').pack(side='left')
+        ttk.Entry(note_row, textvariable=self.note_workday_var, width=18).pack(side='left', padx=6)
+        ttk.Checkbutton(note_row, text='例外以外は同じ備考',
+                        variable=self.same_note_var).pack(side='left', padx=4)
 
     def _build_file(self, parent, pad):
         f = ttk.LabelFrame(parent, text='Excelファイル')
@@ -286,6 +333,14 @@ class DailyReportApp:
         _, last = cal_module.monthrange(year, month)
         hols = {d for d in range(1, last + 1) if jpholiday.is_holiday(date(year, month, d))}
 
+        # ラベル・備考設定
+        label_start  = self.label_start_var.get().strip()  or '開始時間'
+        label_end    = self.label_end_var.get().strip()    or '終了時間'
+        label_break  = self.label_break_var.get().strip()  or '休憩時間'
+        label_note   = self.label_note_var.get().strip()   or '備考'
+        note_workday = self.note_workday_var.get().strip() or '在宅勤務'
+        same_note    = self.same_note_var.get()
+
         # Excel を開く
         try:
             wb = openpyxl.load_workbook(path)
@@ -294,12 +349,12 @@ class DailyReportApp:
             return
         ws = wb.active
 
-        hr = self._find_hr(ws) or 19
+        hr = self._find_hr(ws, [label_start, label_end, label_break, label_note]) or 19
         dr = hr + 1
-        cs = self._find_col(ws, hr, '開始時間') or 'F'
-        ce = self._find_col(ws, hr, '終了時間') or 'I'
-        cb = self._find_col(ws, hr, '休憩時間') or 'L'
-        cn = self._find_col(ws, hr, '備考')     or 'S'
+        cs = self._find_col(ws, hr, label_start) or 'F'
+        ce = self._find_col(ws, hr, label_end)   or 'I'
+        cb = self._find_col(ws, hr, label_break) or 'L'
+        cn = self._find_col(ws, hr, label_note)  or 'S'
         blk = Font(color='000000')
 
         for day in range(1, last + 1):
@@ -312,10 +367,11 @@ class DailyReportApp:
             if day in tex:
                 t = tex[day]
                 for c, v in ((cs, t['start']), (ce, t['end']), (cb, t['break'])):
-                    ws[f'{c}{r}'].value          = v
-                    ws[f'{c}{r}'].number_format  = 'h:mm'
-                    ws[f'{c}{r}'].font           = blk
-                ws[f'{cn}{r}'].value = nex.get(day, '在宅勤務')
+                    ws[f'{c}{r}'].value         = v
+                    ws[f'{c}{r}'].number_format = 'h:mm'
+                    ws[f'{c}{r}'].font          = blk
+                note = note_workday if same_note else nex.get(day, note_workday)
+                ws[f'{cn}{r}'].value = note
                 ws[f'{cn}{r}'].font  = blk
             elif day in paid:
                 ws[f'{cn}{r}'].value = '私用により、休暇'
@@ -328,10 +384,11 @@ class DailyReportApp:
             elif wd in wt:
                 t = wt[wd]
                 for c, v in ((cs, t['start']), (ce, t['end']), (cb, t['break'])):
-                    ws[f'{c}{r}'].value          = v
-                    ws[f'{c}{r}'].number_format  = 'h:mm'
-                    ws[f'{c}{r}'].font           = blk
-                ws[f'{cn}{r}'].value = '在宅勤務'
+                    ws[f'{c}{r}'].value         = v
+                    ws[f'{c}{r}'].number_format = 'h:mm'
+                    ws[f'{c}{r}'].font          = blk
+                note = note_workday if same_note else nex.get(day, note_workday)
+                ws[f'{cn}{r}'].value = note
                 ws[f'{cn}{r}'].font  = blk
 
         # カーソルをA1へ
@@ -354,16 +411,19 @@ class DailyReportApp:
     # ── Excel helpers ──────────────────────────────────────────────────────
 
     def _find_col(self, ws, hr, label):
+        label = label.strip()
         for cell in ws[hr]:
-            if cell.value and (label in str(cell.value) or str(cell.value) in label):
-                return cell.column_letter
+            if cell.value:
+                v = str(cell.value).strip()
+                if v == label or label in v or v in label:
+                    return cell.column_letter
         return None
 
-    def _find_hr(self, ws):
-        labels = ['開始時間', '終了時間', '休憩時間', '備考']
+    def _find_hr(self, ws, labels):
+        clean = [l.strip() for l in labels if l.strip()]
         for row in ws.iter_rows(min_row=1, max_row=ws.max_row):
             vals = [str(c.value).strip() for c in row if c.value]
-            if sum(1 for lbl in labels if any(lbl in v or v in lbl for v in vals)) >= 2:
+            if sum(1 for lbl in clean if any(lbl in v or v in lbl for v in vals)) >= 2:
                 return row[0].row
         return None
 
