@@ -11,6 +11,7 @@ import jpholiday
 WEEKDAY_NAMES = ['月曜日', '火曜日', '水曜日', '木曜日', '金曜日']
 SETTINGS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'settings.json')
 DEFAULT_TIMES = {'start': '09:00', 'end': '17:30', 'break': '01:00'}
+STANDARD_WORK_MIN = 7 * 60 + 30
 
 
 def parse_time(s):
@@ -23,18 +24,97 @@ def parse_time(s):
         return None
 
 
+def time_to_min(s):
+    t = parse_time(s)
+    if t is None:
+        return None
+    return t.hour * 60 + t.minute
+
+
+def fmt_min(m):
+    if not m:
+        return ''
+    return f'{m // 60}:{m % 60:02d}'
+
+
+# ── カレンダーモーダル ────────────────────────────────────────────────────────
+
+class CalendarDialog:
+    """日付選択用モーダルカレンダー。"""
+
+    def __init__(self, parent, year, month, callback):
+        self.top = tk.Toplevel(parent)
+        self.top.title(f'{year}年{month}月 — 日付を選択')
+        self.top.resizable(False, False)
+        self.top.grab_set()
+        self.top.focus_set()
+        self.callback = callback
+        self._build(year, month)
+        parent.update_idletasks()
+        x = parent.winfo_rootx() + parent.winfo_width() // 2 - 165
+        y = parent.winfo_rooty() + parent.winfo_height() // 2 - 150
+        self.top.geometry(f'+{max(0, x)}+{max(0, y)}')
+
+    def _build(self, year, month):
+        frm = ttk.Frame(self.top, padding=14)
+        frm.pack()
+
+        ttk.Label(frm, text=f'{year}年{month}月', font=('', 11, 'bold')).grid(
+            row=0, column=0, columnspan=7, pady=(0, 8))
+
+        hdr_names = ['月', '火', '水', '木', '金', '土', '日']
+        hdr_fgs   = ['#333'] * 5 + ['#3182ce', '#e53e3e']
+        for c, (h, fg) in enumerate(zip(hdr_names, hdr_fgs)):
+            tk.Label(frm, text=h, width=5, fg=fg, font=('', 9, 'bold'),
+                     bg='#eff6ff').grid(row=1, column=c, padx=1, pady=2, sticky='ew')
+
+        _, last = cal_module.monthrange(year, month)
+        first_wd = date(year, month, 1).weekday()
+        gr, gc = 2, first_wd
+
+        for day in range(1, last + 1):
+            d_obj    = date(year, month, day)
+            is_sat   = gc == 5
+            is_sun   = gc == 6
+            hol_name = jpholiday.is_holiday_name(d_obj)
+            fg = '#3182ce' if is_sat else ('#e53e3e' if (is_sun or hol_name) else '#333')
+            bg = '#fff5f5' if (is_sun or hol_name) else ('#f0f8ff' if is_sat else '#ffffff')
+            text = f'{day}\n{hol_name[:4]}' if hol_name else str(day)
+
+            btn = tk.Button(frm, text=text, width=5, fg=fg, bg=bg,
+                            relief='flat', cursor='hand2', font=('', 9),
+                            command=lambda d=day: self._select(d))
+            btn.grid(row=gr, column=gc, padx=1, pady=1, sticky='ew')
+            btn.bind('<Enter>', lambda e, b=btn: b.config(bg='#dbeafe'))
+            btn.bind('<Leave>', lambda e, b=btn, c=bg: b.config(bg=c))
+
+            gc += 1
+            if gc > 6:
+                gc, gr = 0, gr + 1
+
+        ttk.Button(frm, text='閉じる', command=self.top.destroy).grid(
+            row=gr + 1, column=0, columnspan=7, sticky='ew', pady=(10, 0))
+
+    def _select(self, day):
+        self.callback(day)
+        self.top.destroy()
+
+
+# ── メインアプリ ─────────────────────────────────────────────────────────────
+
 class DailyReportApp:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title('日報自動入力アプリ')
-        self.root.geometry('600x760')
-        self.root.minsize(540, 480)
+        self.root.geometry('660x880')
+        self.root.minsize(580, 520)
         self.settings = self._load_settings()
         self._build_ui()
         self._apply_settings()
+        self._refresh_schedule()
         self.root.mainloop()
 
-    # ── Settings ──────────────────────────────────────────────────────────
+    # ── 設定の保存・読み込み ──────────────────────────────────────────────────
 
     def _load_settings(self):
         try:
@@ -72,13 +152,13 @@ class DailyReportApp:
                 self.time_vars[i][k].set(t.get(k, DEFAULT_TIMES[k]))
         labels = self.settings.get('labels', {})
         self.label_start_var.set(labels.get('start', '開始時間'))
-        self.label_end_var.set(labels.get('end',   '終了時間'))
+        self.label_end_var.set(labels.get('end',    '終了時間'))
         self.label_break_var.set(labels.get('break', '休憩時間'))
-        self.label_note_var.set(labels.get('note',  '備考'))
+        self.label_note_var.set(labels.get('note',   '備考'))
         self.note_workday_var.set(self.settings.get('note_workday', '在宅勤務'))
         self.same_note_var.set(self.settings.get('same_note', True))
 
-    # ── UI ────────────────────────────────────────────────────────────────
+    # ── UI 構築 ──────────────────────────────────────────────────────────────
 
     def _build_ui(self):
         canvas = tk.Canvas(self.root, borderwidth=0, highlightthickness=0)
@@ -100,9 +180,12 @@ class DailyReportApp:
         self._build_weekday(container, pad)
         self._build_exceptions(container, pad)
         self._build_paid_leave(container, pad)
+        self._build_schedule(container, pad)
         self._build_labels(container, pad)
         self._build_file(container, pad)
         ttk.Button(container, text='入力完了・保存', command=self._execute, width=22).pack(pady=14)
+
+    # ── 対象月 ───────────────────────────────────────────────────────────────
 
     def _build_ym(self, parent, pad):
         f = ttk.LabelFrame(parent, text='対象月')
@@ -116,6 +199,21 @@ class DailyReportApp:
         ttk.Label(inner, text=' 年 ').pack(side='left')
         ttk.Spinbox(inner, from_=1,    to=12,   textvariable=self.month_var, width=4).pack(side='left')
         ttk.Label(inner, text=' 月').pack(side='left')
+        self.year_var.trace_add('write',  lambda *_: self._on_ym_change())
+        self.month_var.trace_add('write', lambda *_: self._on_ym_change())
+
+    def _on_ym_change(self):
+        if self.pl_var.get():
+            for w in self.pl_content.winfo_children():
+                w.destroy()
+            self.day_check_vars.clear()
+            try:
+                self._build_cal_grid(self.year_var.get(), self.month_var.get())
+            except Exception:
+                pass
+        self._schedule_refresh()
+
+    # ── 曜日別勤務時間 ────────────────────────────────────────────────────────
 
     def _build_weekday(self, parent, pad):
         f = ttk.LabelFrame(parent, text='曜日別勤務時間  （形式: HH:MM）')
@@ -130,10 +228,91 @@ class DailyReportApp:
             row_vars = {}
             for col, key in enumerate(('start', 'end', 'break'), 1):
                 var = tk.StringVar()
+                var.trace_add('write', lambda *_: self._schedule_refresh())
                 ttk.Entry(f, textvariable=var, width=8, justify='center').grid(
                     row=i + 1, column=col, padx=3, pady=4)
                 row_vars[key] = var
             self.time_vars.append(row_vars)
+
+    # ── 例外日（カレンダーで日付選択） ───────────────────────────────────────
+
+    def _build_exceptions(self, parent, pad):
+        outer = ttk.LabelFrame(parent, text='例外日（残業・早退・休日出勤など）')
+        outer.pack(fill='x', **pad)
+        self.ex_var = tk.BooleanVar()
+        ttk.Checkbutton(outer, text='例外日がある', variable=self.ex_var,
+                        command=self._toggle_ex).pack(anchor='w', padx=8, pady=4)
+
+        self.ex_content = ttk.Frame(outer)
+
+        hdr = ttk.Frame(self.ex_content)
+        hdr.pack(fill='x', padx=2)
+        for col, (txt, w) in enumerate([('日付', 11), ('開始', 7), ('終了', 7), ('休憩', 7), ('備考', 14)]):
+            ttk.Label(hdr, text=txt, width=w, anchor='center').grid(row=0, column=col, padx=2)
+
+        self.ex_rows_frame = ttk.Frame(self.ex_content)
+        self.ex_rows_frame.pack(fill='x')
+
+        ttk.Button(self.ex_content, text='＋ 例外日を追加', command=self._add_ex_row).pack(pady=5)
+        self.exception_rows = []
+
+    def _toggle_ex(self):
+        if self.ex_var.get():
+            self.ex_content.pack(fill='x', padx=8, pady=(0, 6))
+            if not self.exception_rows:
+                self._add_ex_row()
+        else:
+            self.ex_content.pack_forget()
+            for row in self.exception_rows:
+                row['frame'].destroy()
+            self.exception_rows.clear()
+        self._schedule_refresh()
+
+    def _add_ex_row(self):
+        rf = ttk.Frame(self.ex_rows_frame)
+        rf.pack(fill='x', pady=2)
+
+        day_v   = tk.StringVar(value='')
+        start_v = tk.StringVar()
+        end_v   = tk.StringVar()
+        break_v = tk.StringVar(value='01:00')
+        note_v  = tk.StringVar(value=self.note_workday_var.get() if hasattr(self, 'note_workday_var') else '在宅勤務')
+
+        for v in (start_v, end_v, break_v, note_v):
+            v.trace_add('write', lambda *_: self._schedule_refresh())
+
+        date_btn = ttk.Button(rf, text='日付を選択', width=11)
+        date_btn.grid(row=0, column=0, padx=2)
+
+        row_data = {
+            'frame': rf, 'day': day_v, 'date_btn': date_btn,
+            'start': start_v, 'end': end_v, 'break': break_v, 'note': note_v,
+        }
+
+        def open_cal(r=row_data):
+            def on_select(d, r=r):
+                r['day'].set(str(d))
+                m = self.month_var.get()
+                r['date_btn'].config(text=f'{m}月{d}日')
+                self._schedule_refresh()
+            CalendarDialog(self.root, self.year_var.get(), self.month_var.get(), on_select)
+
+        date_btn.config(command=open_cal)
+
+        ttk.Entry(rf, textvariable=start_v, width=7, justify='center').grid(row=0, column=1, padx=2)
+        ttk.Entry(rf, textvariable=end_v,   width=7, justify='center').grid(row=0, column=2, padx=2)
+        ttk.Entry(rf, textvariable=break_v, width=7, justify='center').grid(row=0, column=3, padx=2)
+        ttk.Entry(rf, textvariable=note_v,  width=14).grid(row=0, column=4, padx=2)
+
+        def remove(r=row_data):
+            r['frame'].destroy()
+            self.exception_rows.remove(r)
+            self._schedule_refresh()
+
+        ttk.Button(rf, text='✕', width=2, command=remove).grid(row=0, column=5, padx=4)
+        self.exception_rows.append(row_data)
+
+    # ── 有給取得日 ───────────────────────────────────────────────────────────
 
     def _build_paid_leave(self, parent, pad):
         outer = ttk.LabelFrame(parent, text='有給取得日')
@@ -153,6 +332,7 @@ class DailyReportApp:
             self._build_cal_grid(self.year_var.get(), self.month_var.get())
         else:
             self.pl_content.pack_forget()
+        self._schedule_refresh()
 
     def _build_cal_grid(self, year, month):
         _, last = cal_module.monthrange(year, month)
@@ -165,6 +345,7 @@ class DailyReportApp:
         gr, gc = 1, first_wd
         for day in range(1, last + 1):
             var = tk.BooleanVar()
+            var.trace_add('write', lambda *_: self._schedule_refresh())
             self.day_check_vars[day] = var
             fg = 'royalblue' if gc == 5 else ('red' if gc == 6 else 'black')
             tk.Checkbutton(self.pl_content, text=str(day), variable=var, fg=fg, width=3).grid(
@@ -173,66 +354,145 @@ class DailyReportApp:
             if gc > 6:
                 gc, gr = 0, gr + 1
 
-    def _build_exceptions(self, parent, pad):
-        outer = ttk.LabelFrame(parent, text='例外日（残業・早退・休日出勤など）')
-        outer.pack(fill='x', **pad)
-        self.ex_var = tk.BooleanVar()
-        ttk.Checkbutton(outer, text='例外日がある', variable=self.ex_var,
-                        command=self._toggle_ex).pack(anchor='w', padx=8, pady=4)
+    # ── 月間スケジュール・合計稼働時間 ───────────────────────────────────────
 
-        self.ex_content = ttk.Frame(outer)
+    def _build_schedule(self, parent, pad):
+        f = ttk.LabelFrame(parent, text='合計稼働時間 / 月間スケジュール')
+        f.pack(fill='x', **pad)
 
-        hdr = ttk.Frame(self.ex_content)
-        hdr.pack(fill='x', padx=2)
-        for col, (txt, w) in enumerate([('日付', 5), ('開始', 7), ('終了', 7), ('休憩', 7), ('備考', 14)]):
-            ttk.Label(hdr, text=txt, width=w, anchor='center').grid(row=0, column=col, padx=2)
+        top = ttk.Frame(f)
+        top.pack(fill='x', padx=8, pady=(6, 4))
+        ttk.Label(top, text='合計稼働時間:').pack(side='left')
+        self.total_hours_var = tk.StringVar(value='--')
+        ttk.Label(top, textvariable=self.total_hours_var,
+                  font=('', 13, 'bold'), foreground='#1a56db').pack(side='left', padx=8)
+        ttk.Button(top, text='↺ 更新', command=self._refresh_schedule).pack(side='right')
 
-        self.ex_rows_frame = ttk.Frame(self.ex_content)
-        self.ex_rows_frame.pack(fill='x')
+        cols = ('日', '曜', '開始', '終了', '休憩', '就業時間', '備考')
+        tree_frame = ttk.Frame(f)
+        tree_frame.pack(fill='x', padx=8, pady=(0, 8))
 
-        ttk.Button(self.ex_content, text='＋ 例外日を追加', command=self._add_ex_row).pack(pady=5)
+        self.schedule_tree = ttk.Treeview(tree_frame, columns=cols, show='headings', height=12)
+        widths = {'日': 28, '曜': 28, '開始': 58, '終了': 58, '休憩': 58, '就業時間': 72, '備考': 130}
+        for col in cols:
+            self.schedule_tree.heading(col, text=col)
+            self.schedule_tree.column(col, width=widths[col],
+                                      anchor='w' if col == '備考' else 'center',
+                                      stretch=col == '備考')
 
-        self.exception_rows = []
+        self.schedule_tree.tag_configure('sun',     foreground='#e53e3e', background='#fff5f5')
+        self.schedule_tree.tag_configure('sat',     foreground='#3182ce', background='#f0f8ff')
+        self.schedule_tree.tag_configure('holiday', foreground='#e53e3e', background='#fff5f5')
+        self.schedule_tree.tag_configure('paid',    background='#faf5ff')
+        self.schedule_tree.tag_configure('exc',     background='#fffbeb')
+        self.schedule_tree.tag_configure('work',    background='#ffffff')
 
-    def _toggle_ex(self):
-        if self.ex_var.get():
-            self.ex_content.pack(fill='x', padx=8, pady=(0, 6))
-            if not self.exception_rows:
-                self._add_ex_row()
-        else:
-            self.ex_content.pack_forget()
-            for row in self.exception_rows:
-                row['frame'].destroy()
-            self.exception_rows.clear()
+        ysb = ttk.Scrollbar(tree_frame, orient='vertical', command=self.schedule_tree.yview)
+        self.schedule_tree.configure(yscrollcommand=ysb.set)
+        self.schedule_tree.pack(side='left', fill='both', expand=True)
+        ysb.pack(side='right', fill='y')
 
-    def _add_ex_row(self):
-        _, last = cal_module.monthrange(self.year_var.get(), self.month_var.get())
-        rf = ttk.Frame(self.ex_rows_frame)
-        rf.pack(fill='x', pady=2)
+    def _schedule_refresh(self):
+        if hasattr(self, '_refresh_id'):
+            self.root.after_cancel(self._refresh_id)
+        self._refresh_id = self.root.after(300, self._refresh_schedule)
 
-        day_v   = tk.StringVar(value='1')
-        start_v = tk.StringVar()
-        end_v   = tk.StringVar()
-        break_v = tk.StringVar(value='01:00')
-        note_v  = tk.StringVar(value=self.note_workday_var.get() if hasattr(self, 'note_workday_var') else '在宅勤務')
+    def _refresh_schedule(self):
+        if not hasattr(self, 'schedule_tree'):
+            return
+        try:
+            year  = self.year_var.get()
+            month = self.month_var.get()
+        except Exception:
+            return
+        if not (2000 <= year <= 2099 and 1 <= month <= 12):
+            return
 
-        ttk.Spinbox(rf, from_=1, to=last, textvariable=day_v,   width=5).grid(row=0, column=0, padx=2)
-        ttk.Entry(rf, textvariable=start_v, width=7, justify='center').grid(row=0, column=1, padx=2)
-        ttk.Entry(rf, textvariable=end_v,   width=7, justify='center').grid(row=0, column=2, padx=2)
-        ttk.Entry(rf, textvariable=break_v, width=7, justify='center').grid(row=0, column=3, padx=2)
-        ttk.Entry(rf, textvariable=note_v,  width=14).grid(row=0, column=4, padx=2)
+        _, last = cal_module.monthrange(year, month)
+        DOW_NAMES = ['月', '火', '水', '木', '金', '土', '日']
 
-        row_data = {
-            'frame': rf,
-            'day': day_v, 'start': start_v, 'end': end_v, 'break': break_v, 'note': note_v,
-        }
+        wt = {}
+        for i in range(5):
+            s = time_to_min(self.time_vars[i]['start'].get())
+            e = time_to_min(self.time_vars[i]['end'].get())
+            b = time_to_min(self.time_vars[i]['break'].get()) or 0
+            if s is not None and e is not None and e > s:
+                wt[i] = {
+                    'start': self.time_vars[i]['start'].get(),
+                    'end':   self.time_vars[i]['end'].get(),
+                    'break': self.time_vars[i]['break'].get(),
+                    'work':  e - s - b,
+                }
 
-        def remove(r=row_data):
-            r['frame'].destroy()
-            self.exception_rows.remove(r)
+        paid = {d for d, v in self.day_check_vars.items() if v.get()} if self.pl_var.get() else set()
 
-        ttk.Button(rf, text='✕', width=2, command=remove).grid(row=0, column=5, padx=4)
-        self.exception_rows.append(row_data)
+        tex = {}
+        for row in self.exception_rows:
+            ds = row['day'].get()
+            if not (ds and ds.isdigit()):
+                continue
+            d = int(ds)
+            s = time_to_min(row['start'].get())
+            e = time_to_min(row['end'].get())
+            b = time_to_min(row['break'].get()) or 0
+            if s is not None and e is not None and e > s:
+                tex[d] = {
+                    'start': row['start'].get(), 'end': row['end'].get(),
+                    'break': row['break'].get(), 'note': row['note'].get(),
+                    'work':  e - s - b,
+                }
+
+        same_note    = self.same_note_var.get()
+        note_workday = self.note_workday_var.get().strip() or '在宅勤務'
+
+        hols = {}
+        for d in range(1, last + 1):
+            name = jpholiday.is_holiday_name(date(year, month, d))
+            if name:
+                hols[d] = name
+
+        for item in self.schedule_tree.get_children():
+            self.schedule_tree.delete(item)
+
+        total_work = 0
+
+        for day in range(1, last + 1):
+            wd       = date(year, month, day).weekday()
+            dow_name = DOW_NAMES[wd]
+            start = end = brk = work_str = note = ''
+            tag = 'work'
+
+            if day in tex:
+                t = tex[day]
+                start, end, brk = t['start'], t['end'], t['break']
+                work_str = fmt_min(t['work'])
+                total_work += t['work']
+                note = note_workday if same_note else t['note']
+                tag = 'exc'
+            elif wd == 6:
+                tag = 'sun'
+            elif wd == 5:
+                tag = 'sat'
+            elif day in hols:
+                note = '祝日'
+                tag = 'holiday'
+            elif day in paid:
+                note = '私用により、休暇'
+                tag = 'paid'
+            elif wd in wt:
+                t = wt[wd]
+                start, end, brk = t['start'], t['end'], t['break']
+                work_str = fmt_min(t['work'])
+                total_work += t['work']
+                note = note_workday
+                tag = 'work'
+
+            self.schedule_tree.insert('', 'end',
+                values=(day, dow_name, start, end, brk, work_str, note), tags=(tag,))
+
+        self.total_hours_var.set(fmt_min(total_work) or '--')
+
+    # ── Excel列ラベル / 備考設定 ──────────────────────────────────────────────
 
     def _build_labels(self, parent, pad):
         f = ttk.LabelFrame(parent, text='Excel列ラベル / 備考設定')
@@ -266,7 +526,12 @@ class DailyReportApp:
         ttk.Label(note_row, text='出勤日の備考:').pack(side='left')
         ttk.Entry(note_row, textvariable=self.note_workday_var, width=18).pack(side='left', padx=6)
         ttk.Checkbutton(note_row, text='例外以外は同じ備考',
-                        variable=self.same_note_var).pack(side='left', padx=4)
+                        variable=self.same_note_var,
+                        command=self._schedule_refresh).pack(side='left', padx=4)
+
+        self.note_workday_var.trace_add('write', lambda *_: self._schedule_refresh())
+
+    # ── Excelファイル選択 ─────────────────────────────────────────────────────
 
     def _build_file(self, parent, pad):
         f = ttk.LabelFrame(parent, text='Excelファイル')
@@ -285,7 +550,7 @@ class DailyReportApp:
         if p:
             self.file_var.set(p)
 
-    # ── Execute ───────────────────────────────────────────────────────────
+    # ── 書き込み処理 ──────────────────────────────────────────────────────────
 
     def _execute(self):
         path = self.file_var.get().strip()
@@ -298,7 +563,6 @@ class DailyReportApp:
 
         year, month = self.year_var.get(), self.month_var.get()
 
-        # 曜日別勤務時間
         wt = {}
         for i in range(5):
             s = parse_time(self.time_vars[i]['start'].get())
@@ -310,10 +574,8 @@ class DailyReportApp:
             messagebox.showerror('エラー', '勤務時間をHH:MM形式で入力してください。\n例: 09:00')
             return
 
-        # 有給取得日
         paid = {d for d, v in self.day_check_vars.items() if v.get()} if self.pl_var.get() else set()
 
-        # 例外日
         tex, nex = {}, {}
         for row in self.exception_rows:
             ds = row['day'].get()
@@ -329,11 +591,9 @@ class DailyReportApp:
             if n:
                 nex[d] = n
 
-        # 祝日（オフライン取得）
         _, last = cal_module.monthrange(year, month)
         hols = {d for d in range(1, last + 1) if jpholiday.is_holiday(date(year, month, d))}
 
-        # ラベル・備考設定
         label_start  = self.label_start_var.get().strip()  or '開始時間'
         label_end    = self.label_end_var.get().strip()    or '終了時間'
         label_break  = self.label_break_var.get().strip()  or '休憩時間'
@@ -341,7 +601,6 @@ class DailyReportApp:
         note_workday = self.note_workday_var.get().strip() or '在宅勤務'
         same_note    = self.same_note_var.get()
 
-        # Excel を開く
         try:
             wb = openpyxl.load_workbook(path)
         except Exception as e:
@@ -377,7 +636,7 @@ class DailyReportApp:
                 ws[f'{cn}{r}'].value = '私用により、休暇'
                 ws[f'{cn}{r}'].font  = blk
             elif wd >= 5:
-                pass  # 土日：空欄
+                pass
             elif day in hols:
                 ws[f'{cn}{r}'].value = '祝日'
                 ws[f'{cn}{r}'].font  = blk
@@ -391,14 +650,12 @@ class DailyReportApp:
                 ws[f'{cn}{r}'].value = note
                 ws[f'{cn}{r}'].font  = blk
 
-        # カーソルをA1へ
         try:
             ws.sheet_view.selection[0].activeCell = 'A1'
             ws.sheet_view.selection[0].sqref      = 'A1'
         except Exception:
             pass
 
-        # 上書き保存
         try:
             wb.save(path)
         except Exception as e:
@@ -408,7 +665,7 @@ class DailyReportApp:
         self._save_settings()
         messagebox.showinfo('完了', f'書き込みが完了しました。\n\nファイル: {os.path.basename(path)}')
 
-    # ── Excel helpers ──────────────────────────────────────────────────────
+    # ── Excel ヘルパー ────────────────────────────────────────────────────────
 
     def _find_col(self, ws, hr, label):
         label = label.strip()
