@@ -868,6 +868,17 @@
           <input type="hidden" name="paid_leave_dates" id="paidLeaveDates">
         </div>
 
+        <div class="note-row">
+          <label>備考列タイトル</label>
+          <input class="note-input" id="label_note" name="label_note" type="text" value="備考">
+          <label>出勤日の記入内容</label>
+          <input class="note-input" id="note_workday" name="note_workday" type="text" value="在宅勤務">
+          <label class="checkbox-label" style="margin-left:4px">
+            <input type="checkbox" id="sameNote" checked>
+            出勤日はすべて同じ
+          </label>
+        </div>
+
         <div class="hours-summary" id="hoursSummary">
           <div class="summary-header">
             <div class="summary-title">合計稼働時間</div>
@@ -891,17 +902,6 @@
             </table>
           </div>
         </div>
-      </div>
-
-      <div class="note-row">
-        <label>備考列タイトル</label>
-        <input class="note-input" id="label_note" name="label_note" type="text" value="備考">
-        <label>出勤日の記入内容</label>
-        <input class="note-input" id="note_workday" name="note_workday" type="text" value="在宅勤務">
-        <label class="checkbox-label" style="margin-left:4px">
-          <input type="checkbox" id="sameNote" checked>
-          出勤日はすべて同じ
-        </label>
       </div>
 
       <div class="exception-section" id="exceptionSection" style="display:none">
