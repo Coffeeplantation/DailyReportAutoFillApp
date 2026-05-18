@@ -475,6 +475,9 @@ class DailyReportApp:
                 else:
                     note = t['note'] or nex.get(day, note_workday)
                 tag = 'exc'
+            elif day in paid:
+                note = '私用により、休暇'
+                tag = 'paid'
             elif wd == 6:
                 tag = 'sun'
             elif wd == 5:
@@ -482,9 +485,6 @@ class DailyReportApp:
             elif day in hols:
                 note = '祝日'
                 tag = 'holiday'
-            elif day in paid:
-                note = '私用により、休暇'
-                tag = 'paid'
             elif wd in wt:
                 t = wt[wd]
                 start, end, brk = t['start'], t['end'], t['break']
