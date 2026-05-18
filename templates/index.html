@@ -103,24 +103,6 @@
     #yearInput  { width: 70px; }
     #monthInput { width: 44px; }
 
-    .th-input {
-      border: none;
-      border-bottom: 1px dashed #ccc;
-      background: transparent;
-      font-size: 0.82rem;
-      color: #888;
-      font-weight: 600;
-      text-align: center;
-      width: 80px;
-      outline: none;
-      padding: 2px 0;
-    }
-
-    .th-input:focus {
-      border-bottom-color: #1a56db;
-      color: #333;
-    }
-
     .card {
       background: #fff;
       border-radius: 12px;
@@ -234,6 +216,7 @@
       box-shadow: 0 0 0 3px rgba(26,86,219,0.1);
     }
 
+    #label_start, #label_end, #label_break { width: 80px; }
     #label_note    { width: 110px; }
     #note_workday  { width: 140px; }
 
@@ -825,9 +808,9 @@
         <thead>
           <tr>
             <th></th>
-            <th><input class="th-input" id="label_start" name="label_start" type="text" value="開始時間"></th>
-            <th><input class="th-input" id="label_end"   name="label_end"   type="text" value="終了時間"></th>
-            <th><input class="th-input" id="label_break" name="label_break" type="text" value="休憩時間"></th>
+            <th id="th_start_label">開始時間</th>
+            <th id="th_end_label">終了時間</th>
+            <th id="th_break_label">休憩時間</th>
           </tr>
         </thead>
         <tbody>
@@ -863,6 +846,15 @@
           </tr>
         </tbody>
       </table>
+
+      <div class="note-row">
+        <label>開始列名</label>
+        <input class="note-input" id="label_start" name="label_start" type="text" value="開始時間">
+        <label>終了列名</label>
+        <input class="note-input" id="label_end" name="label_end" type="text" value="終了時間">
+        <label>休憩列名</label>
+        <input class="note-input" id="label_break" name="label_break" type="text" value="休憩時間">
+      </div>
 
       <div class="time-exc-section">
         <div id="timeExceptionRows"></div>
@@ -1011,6 +1003,7 @@
     document.getElementById('label_break').value  = '休憩時間';
     document.getElementById('label_note').value   = '備考';
     document.getElementById('note_workday').value = '在宅勤務';
+    syncThLabels();
 
     document.getElementById('timeExceptionRows').innerHTML = '';
     document.getElementById('exceptionRows').innerHTML     = '';
@@ -1047,11 +1040,23 @@
         if (el && settings[id]) el.value = settings[id];
       });
     } catch (e) { /* 読み込み失敗時は初期値のまま */ }
+    syncThLabels();
   }
 
-  // 時間入力・タイトル入力・備考入力が変わったら自動保存＆合計更新
-  document.querySelectorAll('input[type="time"], .th-input, .note-input').forEach(el => {
+  function syncThLabels() {
+    document.getElementById('th_start_label').textContent = document.getElementById('label_start').value || '開始時間';
+    document.getElementById('th_end_label').textContent   = document.getElementById('label_end').value   || '終了時間';
+    document.getElementById('th_break_label').textContent = document.getElementById('label_break').value || '休憩時間';
+  }
+
+  // 時間入力・列名入力・備考入力が変わったら自動保存＆合計更新
+  document.querySelectorAll('input[type="time"], .note-input').forEach(el => {
     el.addEventListener('change', () => { saveSettings(); refreshSummary(); });
+  });
+
+  // 列名入力はリアルタイムでテーブルヘッダーに反映
+  ['label_start','label_end','label_break'].forEach(id => {
+    document.getElementById(id).addEventListener('input', syncThLabels);
   });
 
   // 祝日取得
