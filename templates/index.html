@@ -140,27 +140,33 @@
       font-size: 0.82rem;
       color: #888;
       font-weight: 600;
-      padding: 6px 4px;
+      padding: 4px 6px;
+      text-align: center;
+    }
+
+    .time-table th .note-input {
+      width: 100%;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #555;
+      padding: 6px 8px;
       text-align: center;
     }
 
     .time-table td {
-      padding: 8px 4px;
+      padding: 8px 6px;
       text-align: center;
       vertical-align: middle;
     }
 
-    .time-table td:first-child {
-      text-align: center;
-      width: 94px;
-      padding: 6px 2px;
-    }
-
-    .time-table td:first-child .note-input {
-      width: 88px;
-      font-size: 0.82rem;
-      padding: 5px 6px;
-      text-align: center;
+    .time-table td.day-label {
+      text-align: left;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #555;
+      padding: 8px 12px;
+      white-space: nowrap;
+      width: 72px;
     }
 
     .time-table tr:not(:last-child) td {
@@ -818,37 +824,41 @@
       <table class="time-table">
         <thead>
           <tr>
-            <th>Excel列名</th>
-            <th>月曜日</th>
-            <th>火曜日</th>
-            <th>水曜日</th>
-            <th>木曜日</th>
-            <th>金曜日</th>
+            <th></th>
+            <th><input class="note-input" id="label_start" name="label_start" type="text" value="開始時間"></th>
+            <th><input class="note-input" id="label_end" name="label_end" type="text" value="終了時間"></th>
+            <th><input class="note-input" id="label_break" name="label_break" type="text" value="休憩時間"></th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td><input class="note-input" id="label_start" name="label_start" type="text" value="開始時間"></td>
+            <td class="day-label">月曜日</td>
             <td><input type="time" name="monday_start" value="09:00" required></td>
-            <td><input type="time" name="tuesday_start" value="09:00" required></td>
-            <td><input type="time" name="wednesday_start" value="09:00" required></td>
-            <td><input type="time" name="thursday_start" value="09:00" required></td>
-            <td><input type="time" name="friday_start" value="09:00" required></td>
-          </tr>
-          <tr>
-            <td><input class="note-input" id="label_end" name="label_end" type="text" value="終了時間"></td>
             <td><input type="time" name="monday_end" value="17:30" required></td>
-            <td><input type="time" name="tuesday_end" value="17:30" required></td>
-            <td><input type="time" name="wednesday_end" value="17:30" required></td>
-            <td><input type="time" name="thursday_end" value="17:30" required></td>
-            <td><input type="time" name="friday_end" value="17:30" required></td>
+            <td><input type="time" name="monday_break" value="01:00" required></td>
           </tr>
           <tr>
-            <td><input class="note-input" id="label_break" name="label_break" type="text" value="休憩時間"></td>
-            <td><input type="time" name="monday_break" value="01:00" required></td>
+            <td class="day-label">火曜日</td>
+            <td><input type="time" name="tuesday_start" value="09:00" required></td>
+            <td><input type="time" name="tuesday_end" value="17:30" required></td>
             <td><input type="time" name="tuesday_break" value="01:00" required></td>
+          </tr>
+          <tr>
+            <td class="day-label">水曜日</td>
+            <td><input type="time" name="wednesday_start" value="09:00" required></td>
+            <td><input type="time" name="wednesday_end" value="17:30" required></td>
             <td><input type="time" name="wednesday_break" value="01:00" required></td>
+          </tr>
+          <tr>
+            <td class="day-label">木曜日</td>
+            <td><input type="time" name="thursday_start" value="09:00" required></td>
+            <td><input type="time" name="thursday_end" value="17:30" required></td>
             <td><input type="time" name="thursday_break" value="01:00" required></td>
+          </tr>
+          <tr>
+            <td class="day-label">金曜日</td>
+            <td><input type="time" name="friday_start" value="09:00" required></td>
+            <td><input type="time" name="friday_end" value="17:30" required></td>
             <td><input type="time" name="friday_break" value="01:00" required></td>
           </tr>
         </tbody>
