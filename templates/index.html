@@ -151,10 +151,16 @@
     }
 
     .time-table td:first-child {
-      text-align: left;
-      font-weight: 600;
-      font-size: 0.95rem;
-      width: 72px;
+      text-align: center;
+      width: 94px;
+      padding: 6px 2px;
+    }
+
+    .time-table td:first-child .note-input {
+      width: 88px;
+      font-size: 0.82rem;
+      padding: 5px 6px;
+      text-align: center;
     }
 
     .time-table tr:not(:last-child) td {
@@ -170,6 +176,12 @@
       text-align: center;
       outline: none;
       transition: border-color 0.2s;
+    }
+
+    .time-table td input[type="time"] {
+      width: 84px;
+      font-size: 0.85rem;
+      padding: 6px 4px;
     }
 
     input[type="time"]:focus {
@@ -216,7 +228,6 @@
       box-shadow: 0 0 0 3px rgba(26,86,219,0.1);
     }
 
-    #label_start, #label_end, #label_break { width: 80px; }
     #label_note    { width: 110px; }
     #note_workday  { width: 140px; }
 
@@ -807,54 +818,41 @@
       <table class="time-table">
         <thead>
           <tr>
-            <th></th>
-            <th id="th_start_label">開始時間</th>
-            <th id="th_end_label">終了時間</th>
-            <th id="th_break_label">休憩時間</th>
+            <th>Excel列名</th>
+            <th>月曜日</th>
+            <th>火曜日</th>
+            <th>水曜日</th>
+            <th>木曜日</th>
+            <th>金曜日</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td>月曜日</td>
+            <td><input class="note-input" id="label_start" name="label_start" type="text" value="開始時間"></td>
             <td><input type="time" name="monday_start" value="09:00" required></td>
-            <td><input type="time" name="monday_end" value="17:30" required></td>
-            <td><input type="time" name="monday_break" value="01:00" required></td>
-          </tr>
-          <tr>
-            <td>火曜日</td>
             <td><input type="time" name="tuesday_start" value="09:00" required></td>
-            <td><input type="time" name="tuesday_end" value="17:30" required></td>
-            <td><input type="time" name="tuesday_break" value="01:00" required></td>
-          </tr>
-          <tr>
-            <td>水曜日</td>
             <td><input type="time" name="wednesday_start" value="09:00" required></td>
-            <td><input type="time" name="wednesday_end" value="17:30" required></td>
-            <td><input type="time" name="wednesday_break" value="01:00" required></td>
-          </tr>
-          <tr>
-            <td>木曜日</td>
             <td><input type="time" name="thursday_start" value="09:00" required></td>
-            <td><input type="time" name="thursday_end" value="17:30" required></td>
-            <td><input type="time" name="thursday_break" value="01:00" required></td>
+            <td><input type="time" name="friday_start" value="09:00" required></td>
           </tr>
           <tr>
-            <td>金曜日</td>
-            <td><input type="time" name="friday_start" value="09:00" required></td>
+            <td><input class="note-input" id="label_end" name="label_end" type="text" value="終了時間"></td>
+            <td><input type="time" name="monday_end" value="17:30" required></td>
+            <td><input type="time" name="tuesday_end" value="17:30" required></td>
+            <td><input type="time" name="wednesday_end" value="17:30" required></td>
+            <td><input type="time" name="thursday_end" value="17:30" required></td>
             <td><input type="time" name="friday_end" value="17:30" required></td>
+          </tr>
+          <tr>
+            <td><input class="note-input" id="label_break" name="label_break" type="text" value="休憩時間"></td>
+            <td><input type="time" name="monday_break" value="01:00" required></td>
+            <td><input type="time" name="tuesday_break" value="01:00" required></td>
+            <td><input type="time" name="wednesday_break" value="01:00" required></td>
+            <td><input type="time" name="thursday_break" value="01:00" required></td>
             <td><input type="time" name="friday_break" value="01:00" required></td>
           </tr>
         </tbody>
       </table>
-
-      <div class="note-row">
-        <label>開始列名</label>
-        <input class="note-input" id="label_start" name="label_start" type="text" value="開始時間">
-        <label>終了列名</label>
-        <input class="note-input" id="label_end" name="label_end" type="text" value="終了時間">
-        <label>休憩列名</label>
-        <input class="note-input" id="label_break" name="label_break" type="text" value="休憩時間">
-      </div>
 
       <div class="time-exc-section">
         <div id="timeExceptionRows"></div>
@@ -1003,7 +1001,6 @@
     document.getElementById('label_break').value  = '休憩時間';
     document.getElementById('label_note').value   = '備考';
     document.getElementById('note_workday').value = '在宅勤務';
-    syncThLabels();
 
     document.getElementById('timeExceptionRows').innerHTML = '';
     document.getElementById('exceptionRows').innerHTML     = '';
@@ -1040,23 +1037,11 @@
         if (el && settings[id]) el.value = settings[id];
       });
     } catch (e) { /* 読み込み失敗時は初期値のまま */ }
-    syncThLabels();
-  }
-
-  function syncThLabels() {
-    document.getElementById('th_start_label').textContent = document.getElementById('label_start').value || '開始時間';
-    document.getElementById('th_end_label').textContent   = document.getElementById('label_end').value   || '終了時間';
-    document.getElementById('th_break_label').textContent = document.getElementById('label_break').value || '休憩時間';
   }
 
   // 時間入力・列名入力・備考入力が変わったら自動保存＆合計更新
   document.querySelectorAll('input[type="time"], .note-input').forEach(el => {
     el.addEventListener('change', () => { saveSettings(); refreshSummary(); });
-  });
-
-  // 列名入力はリアルタイムでテーブルヘッダーに反映
-  ['label_start','label_end','label_break'].forEach(id => {
-    document.getElementById(id).addEventListener('input', syncThLabels);
   });
 
   // 祝日取得
