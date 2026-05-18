@@ -207,7 +207,9 @@ def write_excel():
             ws[f'{col_note}{row}'].value = '私用により、休暇'
             ws[f'{col_note}{row}'].font = black_font
         elif weekday >= 5:
-            pass  # 土日：空欄
+            if day in note_exceptions:
+                ws[f'{col_note}{row}'].value = note_exceptions[day]
+                ws[f'{col_note}{row}'].font = black_font
         elif day in holidays:
             ws[f'{col_note}{row}'].value = '祝日'
             ws[f'{col_note}{row}'].font = black_font

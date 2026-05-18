@@ -1504,16 +1504,18 @@
           totalOverMin += Math.max(0, wm - STANDARD_WORK_MIN);
         }
         note = (!sameNote && exNotes[d]) ? exNotes[d] : defaultNote;
-      } else if (isSun) {
-        rowCls = 'row-sun';
-      } else if (isSat)  {
-        rowCls = 'row-sat';
-      } else if (isHoliday) {
-        rowCls = 'row-holiday';
-        note = '祝日';
       } else if (isPaid) {
         rowCls = 'row-paid';
         note = '私用により、休暇';
+      } else if (isSun) {
+        rowCls = 'row-sun';
+        if (!sameNote && exNotes[d]) note = exNotes[d];
+      } else if (isSat)  {
+        rowCls = 'row-sat';
+        if (!sameNote && exNotes[d]) note = exNotes[d];
+      } else if (isHoliday) {
+        rowCls = 'row-holiday';
+        note = '祝日';
       } else {
         rowCls = 'row-work';
         const key = DOW_KEYS[dow];
