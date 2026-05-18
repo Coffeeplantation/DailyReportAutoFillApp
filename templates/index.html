@@ -547,6 +547,7 @@
     .monthly-table tr.row-holiday td { background: #fff5f5; }
     .monthly-table tr.row-holiday td:first-child { color: #e53e3e; }
     .monthly-table tr.row-holiday td:nth-child(2) { color: #e53e3e; }
+    .monthly-table tr.row-paid td { background: #f5f3ff; }
     .monthly-table tr.row-paid td:last-child { color: #7c3aed; font-weight: 600; }
     .monthly-table tr.row-work td:nth-child(6) { color: #1a56db; font-weight: 600; }
 
@@ -1515,7 +1516,7 @@
         if (!sameNote && exNotes[d]) note = exNotes[d];
       } else if (isHoliday) {
         rowCls = 'row-holiday';
-        note = '祝日';
+        note = (!sameNote && exNotes[d]) ? exNotes[d] : '祝日';
       } else {
         rowCls = 'row-work';
         const key = DOW_KEYS[dow];

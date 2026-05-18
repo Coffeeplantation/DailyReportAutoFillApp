@@ -390,6 +390,34 @@ class TestWriteAPI:
         ws = load_wb(r).active
         assert ws['D14'].value == '客先常駐'
 
+    def test_note_exception_on_holiday(self, client):
+        # 2026-05-04 (月) みどりの日を例外備考で上書き
+        extra = {'exception_day': '4', 'exception_note': '在宅待機'}
+        r = post_write(client, extra=extra, year='2026', month='5')
+        ws = load_wb(r).active
+        assert ws['D5'].value == '在宅待機'
+
+    def test_note_exception_on_weekend(self, client):
+        # 2026-05-16 (土) に休日出勤備考を設定
+        extra = {'exception_day': '16', 'exception_note': '休日出勤'}
+        r = post_write(client, extra=extra, year='2026', month='5')
+        ws = load_wb(r).active
+        assert ws['D17'].value == '休日出勤'
+
+    def test_paid_leave_on_weekend(self, client):
+        # 2026-05-16 (土) を有給扱い
+        extra = {'paid_leave_dates': '16'}
+        r = post_write(client, extra=extra, year='2026', month='5')
+        ws = load_wb(r).active
+        assert ws['D17'].value == '私用により、休暇'
+
+    def test_paid_leave_on_holiday(self, client):
+        # 2026-05-04 (月, みどりの日) を有給扱い → 有給が祝日より優先
+        extra = {'paid_leave_dates': '4'}
+        r = post_write(client, extra=extra, year='2026', month='5')
+        ws = load_wb(r).active
+        assert ws['D5'].value == '私用により、休暇'
+
     # ── カスタムラベル ──
 
     def test_custom_label_detection(self, client):

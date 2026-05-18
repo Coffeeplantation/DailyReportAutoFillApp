@@ -211,7 +211,7 @@ def write_excel():
                 ws[f'{col_note}{row}'].value = note_exceptions[day]
                 ws[f'{col_note}{row}'].font = black_font
         elif day in holidays:
-            ws[f'{col_note}{row}'].value = '祝日'
+            ws[f'{col_note}{row}'].value = note_exceptions.get(day, '祝日')
             ws[f'{col_note}{row}'].font = black_font
         elif weekday in weekday_times:
             t = weekday_times[weekday]
