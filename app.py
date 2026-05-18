@@ -158,8 +158,8 @@ def write_excel():
     ex_notes = request.form.getlist('exception_note')
     note_exceptions = {}
     for d, n in zip(ex_days, ex_notes):
-        if d.isdigit():
-            note_exceptions[int(d)] = n.strip() or None
+        if d.isdigit() and n.strip():
+            note_exceptions[int(d)] = n.strip()
 
     # 例外日の勤務時間（日付→時間のマッピング）
     time_ex_days   = request.form.getlist('time_ex_day')
@@ -201,7 +201,7 @@ def write_excel():
                 ws[f'{col}{row}'].value = val
                 ws[f'{col}{row}'].number_format = fmt
                 ws[f'{col}{row}'].font = black_font
-            ws[f'{col_note}{row}'].value = note_exceptions[day] if day in note_exceptions else note_workday
+            ws[f'{col_note}{row}'].value = note_exceptions.get(day, note_workday)
             ws[f'{col_note}{row}'].font = black_font
         elif day in paid_leave:
             ws[f'{col_note}{row}'].value = '私用により、休暇'
@@ -221,7 +221,7 @@ def write_excel():
                 ws[f'{col}{row}'].value = val
                 ws[f'{col}{row}'].number_format = fmt
                 ws[f'{col}{row}'].font = black_font
-            ws[f'{col_note}{row}'].value = note_exceptions[day] if day in note_exceptions else note_workday
+            ws[f'{col_note}{row}'].value = note_exceptions.get(day, note_workday)
             ws[f'{col_note}{row}'].font = black_font
 
     # カーソルをA1に設定

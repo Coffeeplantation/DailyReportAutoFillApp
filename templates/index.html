@@ -1123,7 +1123,8 @@
 
   // 備考 例外行を追加
   function addExceptionRow(day = '', note = null) {
-    if (note === null) note = document.getElementById('note_workday').value || '';
+    const noteVal = (note !== null) ? note : '';
+    const defaultNote = document.getElementById('note_workday').value || '在宅勤務';
     const month = getMonth();
     const label = day ? `${month}月${day}日` : '日付を選択';
     const row = document.createElement('div');
@@ -1133,7 +1134,7 @@
               onclick="openExCal(this)">${label}</button>
       <input type="hidden" class="ex-day-input" name="exception_day" value="${day}">
       <input type="text" class="exception-note-input" name="exception_note"
-             placeholder="備考内容" value="${note}">
+             placeholder="${defaultNote}" value="${noteVal}">
       <button type="button" class="del-btn" onclick="this.closest('.exception-row').remove(); buildMonthlySchedule()">✕</button>
     `;
     document.getElementById('exceptionRows').appendChild(row);
@@ -1502,7 +1503,7 @@
           totalWorkMin += wm;
           totalOverMin += Math.max(0, wm - STANDARD_WORK_MIN);
         }
-        note = (!sameNote && exNotes[d] != null) ? exNotes[d] : defaultNote;
+        note = (!sameNote && exNotes[d]) ? exNotes[d] : defaultNote;
       } else if (isSun) {
         rowCls = 'row-sun';
       } else if (isSat)  {
@@ -1526,7 +1527,7 @@
           totalWorkMin += wm;
           totalOverMin += Math.max(0, wm - STANDARD_WORK_MIN);
         }
-        note = (!sameNote && exNotes[d] != null) ? exNotes[d] : defaultNote;
+        note = (!sameNote && exNotes[d]) ? exNotes[d] : defaultNote;
       }
 
       const tr = document.createElement('tr');
