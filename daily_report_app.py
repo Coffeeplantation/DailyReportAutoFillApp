@@ -191,7 +191,6 @@ class DailyReportApp:
         self._build_exceptions(container, pad)
         self._build_paid_leave(container, pad)
         self._build_schedule(container, pad)
-        self._build_labels(container, pad)
         self._build_file(container, pad)
         ttk.Button(container, text='入力完了・保存', command=self._execute, width=22).pack(pady=14)
 
@@ -228,21 +227,71 @@ class DailyReportApp:
     def _build_weekday(self, parent, pad):
         f = ttk.LabelFrame(parent, text='曜日別勤務時間  （形式: HH:MM）')
         f.pack(fill='x', **pad)
-        for col, txt in enumerate(['', '開始', '終了', '休憩']):
-            ttk.Label(f, text=txt, width=8 if col else 7, anchor='center').grid(
-                row=0, column=col, padx=3, pady=2)
+
+        # 列名・備考変数をここで初期化（旧 _build_labels から移動）
+        self.label_start_var  = tk.StringVar(value='開始時間')
+        self.label_end_var    = tk.StringVar(value='終了時間')
+        self.label_break_var  = tk.StringVar(value='休憩時間')
+        self.label_note_var   = tk.StringVar(value='備考')
+        self.note_workday_var = tk.StringVar(value='在宅勤務')
+        self.same_note_var    = tk.BooleanVar(value=True)
+
+        # テーブル部分（grid レイアウト用サブフレーム）
+        tbl = ttk.Frame(f)
+        tbl.pack(fill='x', padx=6, pady=(4, 2))
+
+        # ヘッダー行：Excel列名ラベル ＋ 編集可能な列名入力欄
+        ttk.Label(tbl, text='Excel列名', width=7, anchor='center',
+                  font=('', 8)).grid(row=0, column=0, padx=3, pady=(4, 2))
+        for col, var in enumerate(
+                [self.label_start_var, self.label_end_var, self.label_break_var], 1):
+            ttk.Entry(tbl, textvariable=var, width=9, justify='center').grid(
+                row=0, column=col, padx=3, pady=(4, 2))
+
+        # 月〜金の入力行
         self.time_vars = []
         for i, name in enumerate(WEEKDAY_NAMES):
-            ttk.Label(f, text=name, width=6, anchor='w').grid(
+            ttk.Label(tbl, text=name, width=6, anchor='w').grid(
                 row=i + 1, column=0, padx=10, pady=4, sticky='w')
             row_vars = {}
             for col, key in enumerate(('start', 'end', 'break'), 1):
                 var = tk.StringVar()
                 var.trace_add('write', lambda *_: self._on_input_change())
-                ttk.Entry(f, textvariable=var, width=8, justify='center').grid(
+                ttk.Entry(tbl, textvariable=var, width=9, justify='center').grid(
                     row=i + 1, column=col, padx=3, pady=4)
                 row_vars[key] = var
             self.time_vars.append(row_vars)
+
+        # 区切り線
+        ttk.Separator(tbl, orient='horizontal').grid(
+            row=6, column=0, columnspan=4, sticky='ew', padx=4, pady=4)
+
+        # 備考行：編集可能な列名 ＋ 出勤日備考内容 ＋ 全日同じチェック
+        ttk.Entry(tbl, textvariable=self.label_note_var, width=9, justify='center').grid(
+            row=7, column=0, padx=3, pady=4)
+        note_right = ttk.Frame(tbl)
+        note_right.grid(row=7, column=1, columnspan=3, padx=3, pady=4, sticky='w')
+        ttk.Entry(note_right, textvariable=self.note_workday_var, width=18).pack(side='left')
+        ttk.Checkbutton(note_right, text='出勤日はすべて同じ',
+                        variable=self.same_note_var,
+                        command=self._on_same_note_change).pack(side='left', padx=10)
+
+        # 日付別備考フレーム（same_note=False のとき表示）
+        self.note_ex_frame = ttk.Frame(f)
+        nex_hdr = ttk.Frame(self.note_ex_frame)
+        nex_hdr.pack(fill='x', padx=8, pady=(4, 2))
+        ttk.Label(nex_hdr, text='日付別備考（出勤日）:', font=('', 8)).pack(side='left')
+        ttk.Button(nex_hdr, text='＋ 追加', command=self._add_note_ex_row).pack(
+            side='left', padx=6)
+        self.note_ex_rows_frame = ttk.Frame(self.note_ex_frame)
+        self.note_ex_rows_frame.pack(fill='x')
+        self.note_exception_rows = []
+
+        # 変数トレース登録
+        for var in (self.label_start_var, self.label_end_var,
+                    self.label_break_var, self.label_note_var):
+            var.trace_add('write', lambda *_: self._on_input_change())
+        self.note_workday_var.trace_add('write', lambda *_: self._on_input_change())
 
     # ── 例外日（カレンダーで日付選択） ───────────────────────────────────────
 
@@ -497,59 +546,6 @@ class DailyReportApp:
                 values=(day, dow_name, start, end, brk, work_str, note), tags=(tag,))
 
         self.total_hours_var.set(fmt_min(total_work) or '--')
-
-    # ── Excel列ラベル / 備考設定 ──────────────────────────────────────────────
-
-    def _build_labels(self, parent, pad):
-        f = ttk.LabelFrame(parent, text='Excel列ラベル / 備考設定')
-        f.pack(fill='x', **pad)
-
-        self.label_start_var  = tk.StringVar(value='開始時間')
-        self.label_end_var    = tk.StringVar(value='終了時間')
-        self.label_break_var  = tk.StringVar(value='休憩時間')
-        self.label_note_var   = tk.StringVar(value='備考')
-        self.note_workday_var = tk.StringVar(value='在宅勤務')
-        self.same_note_var    = tk.BooleanVar(value=True)
-
-        inner = ttk.Frame(f)
-        inner.pack(fill='x', padx=10, pady=6)
-
-        lbl_row = ttk.Frame(inner)
-        lbl_row.pack(fill='x', pady=2)
-        for txt, var, w in [
-            ('開始時間列', self.label_start_var,  9),
-            ('終了時間列', self.label_end_var,    9),
-            ('休憩時間列', self.label_break_var,  9),
-            ('備考列',     self.label_note_var,   7),
-        ]:
-            col = ttk.Frame(lbl_row)
-            col.pack(side='left', padx=6)
-            ttk.Label(col, text=txt, font=('', 8)).pack()
-            ttk.Entry(col, textvariable=var, width=w).pack()
-
-        note_row = ttk.Frame(inner)
-        note_row.pack(fill='x', pady=(8, 2))
-        ttk.Label(note_row, text='出勤日の備考:').pack(side='left')
-        ttk.Entry(note_row, textvariable=self.note_workday_var, width=18).pack(side='left', padx=6)
-        ttk.Checkbutton(note_row, text='出勤日はすべて同じ',
-                        variable=self.same_note_var,
-                        command=self._on_same_note_change).pack(side='left', padx=4)
-
-        # 日付別備考フレーム（same_note=False のとき表示）
-        self.note_ex_frame = ttk.Frame(inner)
-
-        nex_hdr = ttk.Frame(self.note_ex_frame)
-        nex_hdr.pack(fill='x', pady=(6, 2))
-        ttk.Label(nex_hdr, text='日付別備考（出勤日）:', font=('', 8)).pack(side='left')
-        ttk.Button(nex_hdr, text='＋ 追加', command=self._add_note_ex_row).pack(side='left', padx=6)
-
-        self.note_ex_rows_frame = ttk.Frame(self.note_ex_frame)
-        self.note_ex_rows_frame.pack(fill='x')
-        self.note_exception_rows = []
-
-        self.note_workday_var.trace_add('write', lambda *_: self._on_input_change())
-        for var in (self.label_start_var, self.label_end_var, self.label_break_var, self.label_note_var):
-            var.trace_add('write', lambda *_: self._on_input_change())
 
     def _on_same_note_change(self):
         self._on_same_note_change_silent()

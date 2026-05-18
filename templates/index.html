@@ -12,11 +12,11 @@
       background: #f0f2f5;
       color: #333;
       min-height: 100vh;
-      padding: 16px;
+      padding: 24px 16px;
     }
 
     .app {
-      max-width: 1100px;
+      max-width: 640px;
       margin: 0 auto;
     }
 
@@ -137,29 +137,29 @@
     }
 
     .time-table th {
-      font-size: 0.88rem;
+      font-size: 0.82rem;
       color: #888;
       font-weight: 600;
-      padding: 8px 6px;
+      padding: 6px 4px;
       text-align: center;
     }
 
     .time-table td {
-      padding: 8px 6px;
+      padding: 8px 4px;
       text-align: center;
       vertical-align: middle;
     }
 
     .time-table td:first-child {
       text-align: center;
-      width: 130px;
-      padding: 6px 4px;
+      width: 94px;
+      padding: 6px 2px;
     }
 
     .time-table td:first-child .note-input {
-      width: 122px;
-      font-size: 0.85rem;
-      padding: 6px 8px;
+      width: 88px;
+      font-size: 0.82rem;
+      padding: 5px 6px;
       text-align: center;
     }
 
@@ -171,17 +171,17 @@
       border: 1px solid #d1d5db;
       border-radius: 8px;
       padding: 7px 6px;
-      font-size: 0.95rem;
-      width: 108px;
+      font-size: 0.9rem;
+      width: 98px;
       text-align: center;
       outline: none;
       transition: border-color 0.2s;
     }
 
     .time-table td input[type="time"] {
-      width: 108px;
-      font-size: 0.9rem;
-      padding: 7px 6px;
+      width: 84px;
+      font-size: 0.85rem;
+      padding: 6px 4px;
     }
 
     input[type="time"]:focus {
@@ -195,6 +195,23 @@
       text-align: right;
       margin-top: 8px;
       height: 16px;
+    }
+
+    .note-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid #f0f0f0;
+      flex-wrap: wrap;
+    }
+
+    .note-row label {
+      font-size: 0.85rem;
+      color: #888;
+      font-weight: 600;
+      white-space: nowrap;
     }
 
     .note-input {
@@ -211,19 +228,8 @@
       box-shadow: 0 0 0 3px rgba(26,86,219,0.1);
     }
 
-    .note-workday-cell {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      padding: 0 6px;
-    }
-
-    .note-workday-cell .note-input {
-      flex: 1;
-      min-width: 100px;
-      font-size: 0.9rem;
-      padding: 7px 10px;
-    }
+    #label_note    { width: 110px; }
+    #note_workday  { width: 140px; }
 
     .exception-section {
       margin-top: 14px;
@@ -845,18 +851,6 @@
             <td><input type="time" name="thursday_break" value="01:00" required></td>
             <td><input type="time" name="friday_break" value="01:00" required></td>
           </tr>
-          <tr>
-            <td><input class="note-input" id="label_note" name="label_note" type="text" value="備考"></td>
-            <td colspan="5">
-              <div class="note-workday-cell">
-                <input class="note-input" id="note_workday" name="note_workday" type="text" value="在宅勤務">
-                <label class="checkbox-label" style="font-size:0.85rem;white-space:nowrap;flex-shrink:0">
-                  <input type="checkbox" id="sameNote" checked>
-                  出勤日はすべて同じ
-                </label>
-              </div>
-            </td>
-          </tr>
         </tbody>
       </table>
 
@@ -897,6 +891,17 @@
             </table>
           </div>
         </div>
+      </div>
+
+      <div class="note-row">
+        <label>備考列タイトル</label>
+        <input class="note-input" id="label_note" name="label_note" type="text" value="備考">
+        <label>出勤日の記入内容</label>
+        <input class="note-input" id="note_workday" name="note_workday" type="text" value="在宅勤務">
+        <label class="checkbox-label" style="margin-left:4px">
+          <input type="checkbox" id="sameNote" checked>
+          出勤日はすべて同じ
+        </label>
       </div>
 
       <div class="exception-section" id="exceptionSection" style="display:none">
@@ -965,7 +970,6 @@
       const el = document.getElementById(id);
       if (el) settings[id] = el.value;
     });
-    settings['sameNote'] = document.getElementById('sameNote').checked;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
 
     const notice = document.getElementById('autosaveNotice');
@@ -1032,11 +1036,6 @@
         const el = document.getElementById(id);
         if (el && settings[id]) el.value = settings[id];
       });
-      if (settings['sameNote'] !== undefined) {
-        const sameNoteEl = document.getElementById('sameNote');
-        sameNoteEl.checked = settings['sameNote'];
-        document.getElementById('exceptionSection').style.display = settings['sameNote'] ? 'none' : 'block';
-      }
     } catch (e) { /* 読み込み失敗時は初期値のまま */ }
   }
 
@@ -1050,11 +1049,7 @@
     try {
       const y = getYear(), m = getMonth();
       const res = await fetch(`/api/holidays?year=${y}&month=${m}`);
-      if (res.ok) {
-        holidays = await res.json();
-      } else {
-        holidays = {};
-      }
+      holidays = await res.json();
     } catch (e) {
       holidays = {};
     }
@@ -1284,7 +1279,6 @@
       container.style.display = 'none';
       selectedDays.clear();
       document.getElementById('paidLeaveDates').value = '';
-      refreshSummary();
     }
   });
 
@@ -1385,6 +1379,62 @@
     return Math.max(0, e - s - b);
   }
 
+  function updateWorkingHoursSummary() {
+    const ROWS = [
+      { name: '月曜', key: 'monday',     dow: 1 },
+      { name: '火曜', key: 'tuesday',    dow: 2 },
+      { name: '水曜', key: 'wednesday',  dow: 3 },
+      { name: '木曜', key: 'thursday',   dow: 4 },
+      { name: '金曜', key: 'friday',     dow: 5 },
+    ];
+
+    const tbody = document.getElementById('summaryBody');
+    if (!tbody) return;
+
+    const year = getYear(), month = getMonth();
+    const daysInMonth = new Date(year, month, 0).getDate();
+
+    // 曜日ごとの稼働日数（祝日・有給を除く）
+    const counts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dow = new Date(year, month - 1, d).getDay();
+      if (dow === 0 || dow === 6) continue;
+      if (holidays[String(d)]) continue;
+      if (selectedDays.has(d)) continue;
+      counts[dow] = (counts[dow] || 0) + 1;
+    }
+
+    let totalWorkMin = 0;
+    let totalOverMin = 0;
+
+    tbody.innerHTML = '';
+    ROWS.forEach(({ name, key, dow }) => {
+      const workMin = getWeekdayWorkMin(key);
+      const overMin = Math.max(0, workMin - STANDARD_WORK_MIN);
+      const cnt     = counts[dow] || 0;
+      totalWorkMin += workMin * cnt;
+      totalOverMin += overMin * cnt;
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${name}</td>
+        <td>${workMin > 0 ? formatMin(workMin) : '--'}</td>
+        <td class="overtime-cell${overMin === 0 ? ' zero' : ''}">${workMin > 0 ? formatMin(overMin) : '--'}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    // 合計行
+    const totalTr = document.createElement('tr');
+    totalTr.style.cssText = 'border-top: 2px solid #bfdbfe;';
+    totalTr.innerHTML = `
+      <td style="font-weight:700;color:#1a56db">合計</td>
+      <td style="font-weight:700;color:#1a56db">${formatMin(totalWorkMin)}</td>
+      <td style="font-weight:700;color:${totalOverMin > 0 ? '#d97706' : '#aaa'}">${formatMin(totalOverMin)}</td>
+    `;
+    tbody.appendChild(totalTr);
+  }
+
   function buildMonthlySchedule() {
     const tbody = document.getElementById('monthlyBody');
     if (!tbody) return;
@@ -1443,16 +1493,16 @@
           totalOverMin += Math.max(0, wm - STANDARD_WORK_MIN);
         }
         note = (!sameNote && exNotes[d] != null) ? exNotes[d] : defaultNote;
-      } else if (isPaid) {
-        rowCls = 'row-paid';
-        note = '私用により、休暇';
       } else if (isSun) {
         rowCls = 'row-sun';
-      } else if (isSat) {
+      } else if (isSat)  {
         rowCls = 'row-sat';
       } else if (isHoliday) {
         rowCls = 'row-holiday';
         note = '祝日';
+      } else if (isPaid) {
+        rowCls = 'row-paid';
+        note = '私用により、休暇';
       } else {
         rowCls = 'row-work';
         const key = DOW_KEYS[dow];
