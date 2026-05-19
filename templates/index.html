@@ -568,6 +568,21 @@
     }
     .note-manual { background: rgba(124,58,237,0.08); font-style: italic; }
 
+    /* 有給行の備考：薄紫背景でも黒文字・編集可能と分かるよう上書き */
+    .monthly-table tr.row-paid td .note-editable {
+      color: #000;
+      border-bottom: 1.5px dashed #8b5cf6;
+    }
+    .monthly-table tr.row-paid td .note-editable:hover {
+      background: rgba(139, 92, 246, 0.10);
+      border-bottom-color: #7c3aed;
+    }
+    .monthly-table tr.row-paid td .note-editable:focus {
+      background: rgba(139, 92, 246, 0.12);
+      box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.22);
+      border-bottom-color: #7c3aed;
+    }
+
     .monthly-table tr.row-sun td { background: #fff5f5; color: #e53e3e; }
     .monthly-table tr.row-sun td:nth-child(3),
     .monthly-table tr.row-sun td:nth-child(4),
@@ -1315,6 +1330,7 @@
       container.style.display = 'none';
       selectedDays.clear();
       document.getElementById('paidLeaveDates').value = '';
+      refreshSummary();
     }
   });
 
