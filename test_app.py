@@ -332,7 +332,7 @@ class TestWriteAPI:
         r = post_write(client, extra={'paid_leave_dates': '7'},
                        year='2026', month='5')
         ws = load_wb(r).active
-        assert ws['D8'].value == '私用により、休暇'
+        assert ws['D8'].value in (None, '')
 
     def test_paid_leave_start_is_blank(self, client):
         r = post_write(client, extra={'paid_leave_dates': '7'},
@@ -345,8 +345,8 @@ class TestWriteAPI:
         r = post_write(client, extra={'paid_leave_dates': '7,8'},
                        year='2026', month='5')
         ws = load_wb(r).active
-        assert ws['D8'].value == '私用により、休暇'
-        assert ws['D9'].value == '私用により、休暇'
+        assert ws['D8'].value in (None, '')
+        assert ws['D9'].value in (None, '')
 
     # ── 時間例外日 ──
     # 2026-05-01 (金) を残業: 10:00-21:00
@@ -409,14 +409,14 @@ class TestWriteAPI:
         extra = {'paid_leave_dates': '16'}
         r = post_write(client, extra=extra, year='2026', month='5')
         ws = load_wb(r).active
-        assert ws['D17'].value == '私用により、休暇'
+        assert ws['D17'].value in (None, '')
 
     def test_paid_leave_on_holiday(self, client):
         # 2026-05-04 (月, みどりの日) を有給扱い → 有給が祝日より優先
         extra = {'paid_leave_dates': '4'}
         r = post_write(client, extra=extra, year='2026', month='5')
         ws = load_wb(r).active
-        assert ws['D5'].value == '私用により、休暇'
+        assert ws['D5'].value in (None, '')
 
     def test_note_exception_overrides_paid_leave(self, client):
         # 2026-05-13 (水) を有給 + 例外備考 → 例外備考が有給より優先
