@@ -547,16 +547,19 @@
       border-radius: 4px;
       cursor: text;
       outline: none;
-      transition: background 0.15s;
+      transition: background 0.15s, border-bottom-color 0.15s;
       max-width: 140px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      color: #333;
+      border-bottom: 1px dashed #ccc;
     }
-    .note-editable:hover { background: #f0f7ff; }
+    .note-editable:hover { background: #f0f7ff; border-bottom-color: #1a56db; }
     .note-editable:focus {
       background: #e8f4ff;
       box-shadow: 0 0 0 2px rgba(26,86,219,0.2);
+      border-bottom-color: #1a56db;
       max-width: none;
       overflow: visible;
       white-space: normal;
@@ -579,7 +582,7 @@
     .monthly-table tr.row-holiday td:first-child { color: #e53e3e; }
     .monthly-table tr.row-holiday td:nth-child(2) { color: #e53e3e; }
     .monthly-table tr.row-paid td { background: #f5f3ff; }
-    .monthly-table tr.row-paid td:last-child { color: #7c3aed; font-weight: 600; }
+    .monthly-table tr.row-paid td:last-child { color: #333; }
     .monthly-table tr.row-work td:nth-child(6) { color: #1a56db; font-weight: 600; }
 
     .monthly-total {

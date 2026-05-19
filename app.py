@@ -188,7 +188,7 @@ def write_excel():
     col_break = find_column(ws, HEADER_ROW, label_break) or 'L'
     col_note  = find_column(ws, HEADER_ROW, label_note)  or 'S'
 
-    black_font = Font(color='000000')
+    black_font = Font(color='FF000000')
 
     for day in range(1, last_day + 1):
         row = DATA_START_ROW + (day - 1)
