@@ -106,8 +106,8 @@ class DailyReportApp:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title('日報自動入力アプリ')
-        self.root.geometry('660x880')
-        self.root.minsize(580, 520)
+        self.root.geometry('660x616')
+        self.root.minsize(580, 400)
         self._initializing = True
         self.settings = self._load_settings()
         self._build_ui()
@@ -171,8 +171,9 @@ class DailyReportApp:
         canvas.pack(side='left', fill='both', expand=True)
 
         container = ttk.Frame(canvas)
-        canvas.create_window((0, 0), window=container, anchor='nw')
+        win_id = canvas.create_window((0, 0), window=container, anchor='nw')
         container.bind('<Configure>', lambda e: canvas.configure(scrollregion=canvas.bbox('all')))
+        canvas.bind('<Configure>', lambda e: canvas.itemconfig(win_id, width=e.width))
         canvas.bind_all('<MouseWheel>', lambda e: canvas.yview_scroll(-1 * (e.delta // 120), 'units'))
 
         pad = dict(padx=12, pady=5)
