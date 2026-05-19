@@ -337,6 +337,10 @@ class DailyReportApp:
                 r['day'].set(str(d))
                 m = self.month_var.get()
                 r['date_btn'].config(text=f'{m}月{d}日')
+                if self.pl_var.get() and d in self.day_check_vars and self.day_check_vars[d].get():
+                    r['start'].set('')
+                    r['end'].set('')
+                    r['break'].set('')
                 self._schedule_refresh()
             CalendarDialog(self.root, self.year_var.get(), self.month_var.get(), on_select)
 
