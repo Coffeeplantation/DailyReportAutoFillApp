@@ -1184,7 +1184,11 @@
 
   // 例外備考の入力変更 → 月間スケジュール再描画（動的行なのでイベント委譲）
   document.getElementById('exceptionRows').addEventListener('input', (e) => {
-    if (e.target.matches('.exception-note-input')) buildMonthlySchedule();
+    if (e.target.matches('.exception-note-input')) {
+      const day = parseInt(e.target.closest('.exception-row')?.querySelector('[name="exception_day"]')?.value);
+      if (day) delete manualNotes[day];
+      buildMonthlySchedule();
+    }
   });
   document.getElementById('timeExceptionRows').addEventListener('change', (e) => {
     if (e.target.type === 'time') buildMonthlySchedule();
@@ -1282,6 +1286,7 @@
     btn.textContent = `${month}月${day}日`;
     btn.classList.add('selected');
     exCalTargetRow.querySelector('.ex-day-input').value = day;
+    delete manualNotes[day];
     closeExCal();
     buildMonthlySchedule();
   }
