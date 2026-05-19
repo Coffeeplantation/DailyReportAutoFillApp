@@ -1581,8 +1581,8 @@
         note = hasNoteEx ? exNotes[d] : defaultNote;
       }
 
-      const finalNote = (d in manualNotes) ? manualNotes[d] : note;
-      const isManual  = d in manualNotes;
+      const finalNote = hasNoteEx ? note : (d in manualNotes) ? manualNotes[d] : note;
+      const isManual  = !hasNoteEx && (d in manualNotes);
 
       const tr = document.createElement('tr');
       tr.className = rowCls;

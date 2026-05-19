@@ -234,8 +234,8 @@ def write_excel():
             ws[f'{col_note}{row}'].value = note_exceptions.get(day, note_workday)
             ws[f'{col_note}{row}'].font = black_font
 
-        # 月間スケジュール上の手動編集備考を最終上書き
-        if day in manual_notes:
+        # 月間スケジュール上の手動編集備考を上書き（例外備考設定がない日のみ）
+        if day in manual_notes and day not in note_exceptions:
             ws[f'{col_note}{row}'].value = manual_notes[day] or None
             ws[f'{col_note}{row}'].font = black_font
 
