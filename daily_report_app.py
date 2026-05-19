@@ -316,8 +316,8 @@ class DailyReportApp:
         rf.pack(fill='x', pady=2)
 
         day_v   = tk.StringVar(value='')
-        start_v = tk.StringVar()
-        end_v   = tk.StringVar()
+        start_v = tk.StringVar(value='09:00')
+        end_v   = tk.StringVar(value='17:30')
         break_v = tk.StringVar(value='01:00')
         note_v  = tk.StringVar(value=self.note_workday_var.get() if hasattr(self, 'note_workday_var') else '在宅勤務')
 
