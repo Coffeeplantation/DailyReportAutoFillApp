@@ -1557,7 +1557,7 @@
         rowCls = 'row-paid';
         workStr = '7:30';
         totalWorkMin += 450;
-        note = hasNoteEx ? exNotes[d] : '';
+        note = hasNoteEx ? exNotes[d] : '私用により、休暇';
       } else if (isSun) {
         rowCls = 'row-sun';
         note = hasNoteEx ? exNotes[d] : '';
@@ -1583,8 +1583,8 @@
         note = hasNoteEx ? exNotes[d] : defaultNote;
       }
 
-      const finalNote = hasNoteEx ? note : (d in manualNotes) ? manualNotes[d] : note;
-      const isManual  = !hasNoteEx && (d in manualNotes);
+      const finalNote = (d in manualNotes) ? manualNotes[d] : note;
+      const isManual  = d in manualNotes;
 
       const tr = document.createElement('tr');
       tr.className = rowCls;

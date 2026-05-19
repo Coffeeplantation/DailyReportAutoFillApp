@@ -217,7 +217,7 @@ def write_excel():
             ws[f'{col_work}{row}'].value = time(7, 30)
             ws[f'{col_work}{row}'].number_format = 'h:mm'
             ws[f'{col_work}{row}'].font = black_font
-            ws[f'{col_note}{row}'].value = note_exceptions.get(day, '')
+            ws[f'{col_note}{row}'].value = note_exceptions.get(day, '私用により、休暇')
             ws[f'{col_note}{row}'].font = black_font
         elif weekday >= 5:
             if day in note_exceptions:
@@ -239,8 +239,8 @@ def write_excel():
             ws[f'{col_note}{row}'].value = note_exceptions.get(day, note_workday)
             ws[f'{col_note}{row}'].font = black_font
 
-        # 月間スケジュール上の手動編集備考を上書き（例外備考設定がない日のみ）
-        if day in manual_notes and day not in note_exceptions:
+        # 月間スケジュール上の手動編集備考を最優先で上書き
+        if day in manual_notes:
             ws[f'{col_note}{row}'].value = manual_notes[day] or None
             ws[f'{col_note}{row}'].font = black_font
 
