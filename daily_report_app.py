@@ -213,14 +213,20 @@ class DailyReportApp:
         self.month_var.trace_add('write', lambda *_: self._on_ym_change())
 
     def _on_ym_change(self):
-        if hasattr(self, 'manual_notes'):
+        try:
+            new_ym = (self.year_var.get(), self.month_var.get())
+        except Exception:
+            return
+        ym_changed = not hasattr(self, '_ym_cache') or self._ym_cache != new_ym
+        self._ym_cache = new_ym
+        if ym_changed and hasattr(self, 'manual_notes'):
             self.manual_notes.clear()
-        if self.pl_var.get():
+        if ym_changed and self.pl_var.get():
             for w in self.pl_content.winfo_children():
                 w.destroy()
             self.day_check_vars.clear()
             try:
-                self._build_cal_grid(self.year_var.get(), self.month_var.get())
+                self._build_cal_grid(*new_ym)
             except Exception:
                 pass
         self._schedule_refresh()
@@ -516,6 +522,11 @@ class DailyReportApp:
             if name:
                 hols[d] = name
 
+        try:
+            yview_top = self.schedule_tree.yview()[0]
+        except Exception:
+            yview_top = 0.0
+
         for item in self.schedule_tree.get_children():
             self.schedule_tree.delete(item)
 
@@ -566,6 +577,9 @@ class DailyReportApp:
 
         self.total_hours_var.set(fmt_min(total_work) or '--')
 
+        if yview_top > 0.0:
+            self.schedule_tree.yview_moveto(yview_top)
+
     def _on_tree_double_click(self, event):
         region = self.schedule_tree.identify_region(event.x, event.y)
         if region != 'cell':
@@ -597,8 +611,13 @@ class DailyReportApp:
         entry.select_range(0, 'end')
 
         def confirm():
-            self.manual_notes[day] = entry_var.get()
+            note_val = entry_var.get()
             popup.destroy()
+            # popup.destroy() 後にフォーカス復帰で _on_ym_change が誤発火しても
+            # manual_notes を確実に保持するため destroy 後に再セットする
+            self.manual_notes[day] = note_val
+            if hasattr(self, '_refresh_id'):
+                self.root.after_cancel(self._refresh_id)
             self._refresh_schedule()
 
         def cancel():
