@@ -213,6 +213,8 @@ class DailyReportApp:
         self.month_var.trace_add('write', lambda *_: self._on_ym_change())
 
     def _on_ym_change(self):
+        if hasattr(self, 'manual_notes'):
+            self.manual_notes.clear()
         if self.pl_var.get():
             for w in self.pl_content.winfo_children():
                 w.destroy()
@@ -439,6 +441,12 @@ class DailyReportApp:
         self.schedule_tree.pack(side='left', fill='both', expand=True)
         ysb.pack(side='right', fill='y')
 
+        self.manual_notes = {}
+        self.schedule_tree.bind('<Double-1>', self._on_tree_double_click)
+
+        ttk.Label(f, text='備考列をダブルクリックで編集できます', font=('', 8),
+                  foreground='#666').pack(anchor='w', padx=8, pady=(0, 4))
+
     def _schedule_refresh(self):
         if hasattr(self, '_refresh_id'):
             self.root.after_cancel(self._refresh_id)
@@ -549,10 +557,58 @@ class DailyReportApp:
                 note = note_workday if same_note else nex.get(day, note_workday)
                 tag = 'work'
 
+            # 手動編集を最優先で適用
+            if day in self.manual_notes:
+                note = self.manual_notes[day]
+
             self.schedule_tree.insert('', 'end',
                 values=(day, dow_name, start, end, brk, work_str, note), tags=(tag,))
 
         self.total_hours_var.set(fmt_min(total_work) or '--')
+
+    def _on_tree_double_click(self, event):
+        region = self.schedule_tree.identify_region(event.x, event.y)
+        if region != 'cell':
+            return
+        col = self.schedule_tree.identify_column(event.x)
+        if col != '#7':  # 備考列のみ編集可能
+            return
+        item = self.schedule_tree.identify_row(event.y)
+        if not item:
+            return
+        bbox = self.schedule_tree.bbox(item, col)
+        if not bbox:
+            return
+        x, y, w, h = bbox
+        values = self.schedule_tree.item(item, 'values')
+        day = int(values[0])
+        current_note = values[6]
+
+        entry_var = tk.StringVar(value=current_note)
+        entry = ttk.Entry(self.schedule_tree, textvariable=entry_var)
+        entry.place(x=x, y=y, width=w, height=h)
+        entry.focus_set()
+        entry.select_range(0, 'end')
+
+        done = [False]
+
+        def confirm(event=None):
+            if done[0]:
+                return
+            done[0] = True
+            self.manual_notes[day] = entry_var.get()
+            entry.destroy()
+            self._refresh_schedule()
+
+        def cancel(event=None):
+            if done[0]:
+                return
+            done[0] = True
+            entry.destroy()
+
+        entry.bind('<Return>', confirm)
+        entry.bind('<Escape>', cancel)
+        entry.bind('<FocusOut>', confirm)
 
     def _on_same_note_change(self):
         self._on_same_note_change_silent()
@@ -651,6 +707,8 @@ class DailyReportApp:
         for row in self.note_exception_rows[:]:
             row['frame'].destroy()
         self.note_exception_rows.clear()
+        if hasattr(self, 'manual_notes'):
+            self.manual_notes.clear()
         self.pl_var.set(False)
         self._toggle_pl()
         self._show_notice('↩ リセットしました')
@@ -789,6 +847,11 @@ class DailyReportApp:
                     ws[f'{c}{r}'].font          = blk
                 note = note_workday if same_note else nex.get(day, note_workday)
                 ws[f'{cn}{r}'].value = note
+                ws[f'{cn}{r}'].font  = blk
+
+            # カレンダー上で手動編集した備考を最優先で上書き
+            if day in self.manual_notes:
+                ws[f'{cn}{r}'].value = self.manual_notes[day]
                 ws[f'{cn}{r}'].font  = blk
 
         try:
