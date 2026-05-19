@@ -175,6 +175,14 @@ def write_excel():
             if start and end:
                 time_exceptions[int(d)] = {'start': start, 'end': end, 'break': brk}
 
+    # 月間スケジュール上で直接編集した備考（最優先で適用）
+    manual_note_days  = request.form.getlist('manual_note_day')
+    manual_note_texts = request.form.getlist('manual_note_text')
+    manual_notes = {}
+    for d, n in zip(manual_note_days, manual_note_texts):
+        if d.isdigit():
+            manual_notes[int(d)] = n
+
     col_start = find_column(ws, HEADER_ROW, label_start) or 'F'
     col_end   = find_column(ws, HEADER_ROW, label_end)   or 'I'
     col_break = find_column(ws, HEADER_ROW, label_break) or 'L'
@@ -204,7 +212,7 @@ def write_excel():
             ws[f'{col_note}{row}'].value = note_exceptions.get(day, note_workday)
             ws[f'{col_note}{row}'].font = black_font
         elif day in paid_leave:
-            ws[f'{col_note}{row}'].value = '私用により、休暇'
+            ws[f'{col_note}{row}'].value = note_exceptions.get(day, '私用により、休暇')
             ws[f'{col_note}{row}'].font = black_font
         elif weekday >= 5:
             if day in note_exceptions:
@@ -224,6 +232,11 @@ def write_excel():
                 ws[f'{col}{row}'].number_format = fmt
                 ws[f'{col}{row}'].font = black_font
             ws[f'{col_note}{row}'].value = note_exceptions.get(day, note_workday)
+            ws[f'{col_note}{row}'].font = black_font
+
+        # 月間スケジュール上の手動編集備考を最終上書き
+        if day in manual_notes:
+            ws[f'{col_note}{row}'].value = manual_notes[day] or None
             ws[f'{col_note}{row}'].font = black_font
 
     # カーソルをA1に設定

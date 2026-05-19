@@ -538,12 +538,43 @@
     }
 
     .monthly-table td:first-child { font-weight: 600; width: 26px; }
-    .monthly-table td:last-child  { text-align: left; padding-left: 6px; font-size: 0.75rem; color: #555; }
+    .monthly-table td:last-child  { text-align: left; padding-left: 4px; font-size: 0.75rem; color: #555; }
+
+    .note-editable {
+      display: inline-block;
+      min-width: 20px;
+      padding: 2px 5px;
+      border-radius: 4px;
+      cursor: text;
+      outline: none;
+      transition: background 0.15s;
+      max-width: 140px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .note-editable:hover { background: #f0f7ff; }
+    .note-editable:focus {
+      background: #e8f4ff;
+      box-shadow: 0 0 0 2px rgba(26,86,219,0.2);
+      max-width: none;
+      overflow: visible;
+      white-space: normal;
+      position: relative;
+      z-index: 1;
+    }
+    .note-manual { background: rgba(124,58,237,0.08); font-style: italic; }
 
     .monthly-table tr.row-sun td { background: #fff5f5; color: #e53e3e; }
-    .monthly-table tr.row-sun td:not(:first-child):not(:nth-child(2)) { color: #ccc; }
+    .monthly-table tr.row-sun td:nth-child(3),
+    .monthly-table tr.row-sun td:nth-child(4),
+    .monthly-table tr.row-sun td:nth-child(5),
+    .monthly-table tr.row-sun td:nth-child(6) { color: #ccc; }
     .monthly-table tr.row-sat td { background: #f0f8ff; color: #3182ce; }
-    .monthly-table tr.row-sat td:not(:first-child):not(:nth-child(2)) { color: #ccc; }
+    .monthly-table tr.row-sat td:nth-child(3),
+    .monthly-table tr.row-sat td:nth-child(4),
+    .monthly-table tr.row-sat td:nth-child(5),
+    .monthly-table tr.row-sat td:nth-child(6) { color: #ccc; }
     .monthly-table tr.row-holiday td { background: #fff5f5; }
     .monthly-table tr.row-holiday td:first-child { color: #e53e3e; }
     .monthly-table tr.row-holiday td:nth-child(2) { color: #e53e3e; }
@@ -884,13 +915,9 @@
           <input class="note-input" id="label_note" name="label_note" type="text" value="備考">
           <label>出勤日の記入内容</label>
           <input class="note-input" id="note_workday" name="note_workday" type="text" value="在宅勤務">
-          <label class="checkbox-label" style="margin-left:4px">
-            <input type="checkbox" id="sameNote" checked>
-            出勤日はすべて同じ
-          </label>
         </div>
 
-        <div class="exception-section" id="exceptionSection" style="display:none">
+        <div class="exception-section" id="exceptionSection">
           <div class="sec-label">例外日の備考設定</div>
           <div id="exceptionRows"></div>
           <button type="button" class="add-exception-btn" id="addExceptionBtn">＋ 例外日を追加</button>
@@ -902,7 +929,7 @@
             <div class="summary-total-inline" id="totalWorkDisplay">--</div>
           </div>
           <div class="monthly-schedule" id="monthlySchedule">
-            <div class="monthly-schedule-title">月間スケジュール</div>
+            <div class="monthly-schedule-title">月間スケジュール <span style="font-size:0.7rem;color:#aaa;font-weight:400">（備考欄はクリックして編集可）</span></div>
             <table class="monthly-table">
               <thead>
                 <tr>
@@ -960,6 +987,7 @@
 
   const selectedDays = new Set();
   let holidays = {};
+  let manualNotes = {};
 
   const DAY_NAMES  = ['monday','tuesday','wednesday','thursday','friday'];
   const TIME_TYPES = ['start','end','break'];
@@ -1015,9 +1043,8 @@
 
     document.getElementById('timeExceptionRows').innerHTML = '';
     document.getElementById('exceptionRows').innerHTML     = '';
-    document.getElementById('sameNote').checked            = true;
-    document.getElementById('exceptionSection').style.display = 'none';
 
+    Object.keys(manualNotes).forEach(k => delete manualNotes[k]);
     selectedDays.clear();
     document.getElementById('paidLeaveDates').value        = '';
     document.getElementById('hasPaidLeave').checked        = false;
@@ -1115,12 +1142,6 @@
     document.getElementById('paidLeaveDates').value = [...selectedDays].sort((a,b)=>a-b).join(',');
     refreshSummary();
   }
-
-  // すべて同じ チェックボックス
-  document.getElementById('sameNote').addEventListener('change', function () {
-    document.getElementById('exceptionSection').style.display = this.checked ? 'none' : 'block';
-    buildMonthlySchedule();
-  });
 
   // 備考 例外行を追加
   function addExceptionRow(day = '', note = null) {
@@ -1322,11 +1343,12 @@
 
     try {
       const formData = new FormData(document.getElementById('mainForm'));
-      // 「出勤日はすべて同じ」チェック時は例外データを除外
-      if (document.getElementById('sameNote').checked) {
-        formData.delete('exception_day');
-        formData.delete('exception_note');
-      }
+
+      // 月間スケジュールで手動編集した備考を送信
+      Object.entries(manualNotes).forEach(([day, note]) => {
+        formData.append('manual_note_day',  day);
+        formData.append('manual_note_text', note);
+      });
 
       const res = await fetch('/api/write', { method: 'POST', body: formData });
 
@@ -1476,7 +1498,6 @@
       exNotes[d] = row.querySelector('[name="exception_note"]')?.value || '';
     });
 
-    const sameNote    = document.getElementById('sameNote').checked;
     const defaultNote = document.getElementById('note_workday').value || '';
 
     let totalWorkMin = 0;
@@ -1493,8 +1514,10 @@
       let start = '', end = '', brk = '', workStr = '', note = '';
       let rowCls = '';
 
+      // 備考例外は最優先（プライオリティ1）
+      const hasNoteEx = !!exNotes[d];
+
       if (exTimes[d]) {
-        // 時間例外は最優先（土日・祝日・有給より上書き）
         rowCls = 'row-work';
         ({ start, end, brk } = exTimes[d]);
         const s = parseTimeToMin(start), e = parseTimeToMin(end), b = parseTimeToMin(brk);
@@ -1504,19 +1527,19 @@
           totalWorkMin += wm;
           totalOverMin += Math.max(0, wm - STANDARD_WORK_MIN);
         }
-        note = (!sameNote && exNotes[d]) ? exNotes[d] : defaultNote;
+        note = hasNoteEx ? exNotes[d] : defaultNote;
       } else if (isPaid) {
         rowCls = 'row-paid';
-        note = '私用により、休暇';
+        note = hasNoteEx ? exNotes[d] : '私用により、休暇';
       } else if (isSun) {
         rowCls = 'row-sun';
-        if (!sameNote && exNotes[d]) note = exNotes[d];
+        note = hasNoteEx ? exNotes[d] : '';
       } else if (isSat)  {
         rowCls = 'row-sat';
-        if (!sameNote && exNotes[d]) note = exNotes[d];
+        note = hasNoteEx ? exNotes[d] : '';
       } else if (isHoliday) {
         rowCls = 'row-holiday';
-        note = (!sameNote && exNotes[d]) ? exNotes[d] : '祝日';
+        note = hasNoteEx ? exNotes[d] : '祝日';
       } else {
         rowCls = 'row-work';
         const key = DOW_KEYS[dow];
@@ -1530,12 +1553,31 @@
           totalWorkMin += wm;
           totalOverMin += Math.max(0, wm - STANDARD_WORK_MIN);
         }
-        note = (!sameNote && exNotes[d]) ? exNotes[d] : defaultNote;
+        note = hasNoteEx ? exNotes[d] : defaultNote;
       }
+
+      const finalNote = (d in manualNotes) ? manualNotes[d] : note;
+      const isManual  = d in manualNotes;
 
       const tr = document.createElement('tr');
       tr.className = rowCls;
-      tr.innerHTML = `<td>${d}</td><td>${DOW_NAMES[dow]}</td><td>${start}</td><td>${end}</td><td>${brk}</td><td>${workStr}</td><td>${note}</td>`;
+
+      [String(d), DOW_NAMES[dow], start, end, brk, workStr].forEach(val => {
+        const td = document.createElement('td');
+        td.textContent = val;
+        tr.appendChild(td);
+      });
+
+      const noteTd  = document.createElement('td');
+      const noteDiv = document.createElement('div');
+      noteDiv.className = 'note-editable' + (isManual ? ' note-manual' : '');
+      noteDiv.contentEditable = 'true';
+      noteDiv.dataset.day  = d;
+      noteDiv.dataset.auto = note;
+      noteDiv.textContent  = finalNote;
+      noteTd.appendChild(noteDiv);
+      tr.appendChild(noteTd);
+
       tbody.appendChild(tr);
     }
 
@@ -1547,6 +1589,40 @@
   function refreshSummary() {
     buildMonthlySchedule();
   }
+
+  // ── 月間スケジュール 備考インライン編集 ──
+  document.getElementById('monthlyBody').addEventListener('input', (e) => {
+    const noteDiv = e.target.closest('.note-editable');
+    if (!noteDiv) return;
+    const day = parseInt(noteDiv.dataset.day);
+    manualNotes[day] = noteDiv.textContent;
+    noteDiv.classList.add('note-manual');
+  });
+
+  document.getElementById('monthlyBody').addEventListener('focusout', (e) => {
+    const noteDiv = e.target.closest('.note-editable');
+    if (!noteDiv) return;
+    const day = parseInt(noteDiv.dataset.day);
+    const val = noteDiv.textContent;
+    if (val === noteDiv.dataset.auto) {
+      delete manualNotes[day];
+      noteDiv.classList.remove('note-manual');
+    }
+  });
+
+  document.getElementById('monthlyBody').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && e.target.classList.contains('note-editable')) {
+      e.preventDefault();
+      e.target.blur();
+    }
+  });
+
+  document.getElementById('monthlyBody').addEventListener('paste', (e) => {
+    if (!e.target.classList.contains('note-editable')) return;
+    e.preventDefault();
+    const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+    document.execCommand('insertText', false, text);
+  });
 
   // 起動時に保存済み設定を読み込み、祝日を自動取得
   loadSettings();

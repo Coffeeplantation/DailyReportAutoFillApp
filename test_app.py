@@ -418,6 +418,17 @@ class TestWriteAPI:
         ws = load_wb(r).active
         assert ws['D5'].value == '私用により、休暇'
 
+    def test_note_exception_overrides_paid_leave(self, client):
+        # 2026-05-13 (水) を有給 + 例外備考 → 例外備考が有給より優先
+        extra = {
+            'paid_leave_dates': '13',
+            'exception_day': '13',
+            'exception_note': '半日出勤',
+        }
+        r = post_write(client, extra=extra, year='2026', month='5')
+        ws = load_wb(r).active
+        assert ws['D14'].value == '半日出勤'
+
     # ── カスタムラベル ──
 
     def test_custom_label_detection(self, client):
@@ -519,3 +530,60 @@ class TestDownloads:
 
     def test_report_no_auth(self, client):
         assert client.get('/api/report').status_code == 401
+
+
+class TestManualNotes:
+    """月間スケジュールから直接編集した備考（manual_notes）のテスト"""
+
+    def test_manual_note_overrides_workday(self, client):
+        # 2026-05-11 (月) の備考を手動で書き換え → 書き換え後が優先
+        extra = {'manual_note_day': '11', 'manual_note_text': '客先訪問'}
+        r = post_write(client, extra=extra, year='2026', month='5')
+        ws = load_wb(r).active
+        assert ws['D12'].value == '客先訪問'
+
+    def test_manual_note_overrides_holiday(self, client):
+        # 2026-05-04 (月, みどりの日) を手動で書き換え
+        extra = {'manual_note_day': '4', 'manual_note_text': '振替出勤'}
+        r = post_write(client, extra=extra, year='2026', month='5')
+        ws = load_wb(r).active
+        assert ws['D5'].value == '振替出勤'
+
+    def test_manual_note_overrides_paid_leave(self, client):
+        # 有給日でも手動備考が最優先
+        extra = {
+            'paid_leave_dates': '13',
+            'manual_note_day': '13',
+            'manual_note_text': '特別休暇',
+        }
+        r = post_write(client, extra=extra, year='2026', month='5')
+        ws = load_wb(r).active
+        assert ws['D14'].value == '特別休暇'
+
+    def test_manual_note_empty_clears_cell(self, client):
+        # 手動備考を空文字にするとセルが空欄になる
+        extra = {'manual_note_day': '11', 'manual_note_text': ''}
+        r = post_write(client, extra=extra, year='2026', month='5')
+        ws = load_wb(r).active
+        assert ws['D12'].value is None
+
+    def test_multiple_manual_notes(self, client):
+        # 複数日を同時に書き換え（multidict を直接送信）
+        from werkzeug.datastructures import MultiDict
+        xlsx = make_xlsx()
+        md = MultiDict([
+            ('year', '2026'), ('month', '5'),
+            *list(BASE_TIMES.items()),
+            ('manual_note_day', '11'), ('manual_note_text', 'メモA'),
+            ('manual_note_day', '12'), ('manual_note_text', 'メモB'),
+        ])
+        r = client.post(
+            '/api/write',
+            data={**md.to_dict(flat=False),
+                  'excel_file': (xlsx, 'test.xlsx')},
+            headers=basic_auth(),
+            content_type='multipart/form-data',
+        )
+        ws = load_wb(r).active
+        assert ws['D12'].value == 'メモA'
+        assert ws['D13'].value == 'メモB'
