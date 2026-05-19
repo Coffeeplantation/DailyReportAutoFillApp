@@ -1157,6 +1157,7 @@
       selectedDays.add(day);
       el.classList.add('selected');
     }
+    delete manualNotes[day];
     document.getElementById('paidLeaveDates').value = [...selectedDays].sort((a,b)=>a-b).join(',');
     refreshSummary();
   }
