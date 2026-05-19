@@ -444,7 +444,7 @@ class DailyReportApp:
         self.manual_notes = {}
         self.schedule_tree.bind('<Double-1>', self._on_tree_double_click)
 
-        ttk.Label(f, text='備考列をダブルクリックで編集できます', font=('', 8),
+        ttk.Label(f, text='行をダブルクリックすると備考を編集できます', font=('', 8),
                   foreground='#666').pack(anchor='w', padx=8, pady=(0, 4))
 
     def _schedule_refresh(self):
@@ -570,45 +570,52 @@ class DailyReportApp:
         region = self.schedule_tree.identify_region(event.x, event.y)
         if region != 'cell':
             return
-        col = self.schedule_tree.identify_column(event.x)
-        if col != '#7':  # 備考列のみ編集可能
-            return
         item = self.schedule_tree.identify_row(event.y)
         if not item:
             return
-        bbox = self.schedule_tree.bbox(item, col)
-        if not bbox:
-            return
-        x, y, w, h = bbox
         values = self.schedule_tree.item(item, 'values')
         day = int(values[0])
+        dow = values[1]
         current_note = values[6]
 
+        popup = tk.Toplevel(self.root)
+        popup.title('備考の編集')
+        popup.resizable(False, False)
+        popup.grab_set()
+
+        frm = ttk.Frame(popup, padding=14)
+        frm.pack()
+
+        ttk.Label(frm, text=f'{self.month_var.get()}月{day}日（{dow}）',
+                  font=('', 10, 'bold')).pack(anchor='w', pady=(0, 6))
+        ttk.Label(frm, text='備考:').pack(anchor='w')
+
         entry_var = tk.StringVar(value=current_note)
-        entry = ttk.Entry(self.schedule_tree, textvariable=entry_var)
-        entry.place(x=x, y=y, width=w, height=h)
+        entry = ttk.Entry(frm, textvariable=entry_var, width=28)
+        entry.pack(fill='x', pady=(2, 10))
         entry.focus_set()
         entry.select_range(0, 'end')
 
-        done = [False]
-
-        def confirm(event=None):
-            if done[0]:
-                return
-            done[0] = True
+        def confirm():
             self.manual_notes[day] = entry_var.get()
-            entry.destroy()
+            popup.destroy()
             self._refresh_schedule()
 
-        def cancel(event=None):
-            if done[0]:
-                return
-            done[0] = True
-            entry.destroy()
+        def cancel():
+            popup.destroy()
 
-        entry.bind('<Return>', confirm)
-        entry.bind('<Escape>', cancel)
-        entry.bind('<FocusOut>', confirm)
+        btn_row = ttk.Frame(frm)
+        btn_row.pack(fill='x')
+        ttk.Button(btn_row, text='確定', command=confirm).pack(side='right', padx=(4, 0))
+        ttk.Button(btn_row, text='キャンセル', command=cancel).pack(side='right')
+
+        entry.bind('<Return>', lambda e: confirm())
+        entry.bind('<Escape>', lambda e: cancel())
+
+        popup.update_idletasks()
+        x = self.root.winfo_rootx() + self.root.winfo_width()  // 2 - popup.winfo_reqwidth()  // 2
+        y = self.root.winfo_rooty() + self.root.winfo_height() // 2 - popup.winfo_reqheight() // 2
+        popup.geometry(f'+{max(0, x)}+{max(0, y)}')
 
     def _on_same_note_change(self):
         self._on_same_note_change_silent()
