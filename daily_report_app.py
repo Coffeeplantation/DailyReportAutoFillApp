@@ -37,6 +37,14 @@ def fmt_min(m):
     return f'{m // 60}:{m % 60:02d}'
 
 
+def fmt_decimal(m):
+    """分を十進法の時間に変換（例: 450 → '7.5'）"""
+    if not m:
+        return ''
+    s = f'{m / 60:.2f}'.rstrip('0')
+    return s if not s.endswith('.') else s + '0'
+
+
 # ── カレンダーモーダル ────────────────────────────────────────────────────────
 
 class CalendarDialog:
@@ -541,7 +549,7 @@ class DailyReportApp:
             if day in tex:
                 t = tex[day]
                 start, end, brk = t['start'], t['end'], t['break']
-                work_str = fmt_min(t['work'])
+                work_str = fmt_decimal(t['work'])
                 total_work += t['work']
                 if same_note:
                     note = note_workday
@@ -549,7 +557,7 @@ class DailyReportApp:
                     note = t['note'] or nex.get(day, note_workday)
                 tag = 'exc'
             elif day in paid:
-                total_work += 450
+                total_work += STANDARD_WORK_MIN
                 note = '私用により、休暇'
                 tag = 'paid'
             elif wd == 6:
@@ -562,7 +570,7 @@ class DailyReportApp:
             elif wd in wt:
                 t = wt[wd]
                 start, end, brk = t['start'], t['end'], t['break']
-                work_str = fmt_min(t['work'])
+                work_str = fmt_decimal(t['work'])
                 total_work += t['work']
                 note = note_workday if same_note else nex.get(day, note_workday)
                 tag = 'work'
@@ -574,7 +582,7 @@ class DailyReportApp:
             self.schedule_tree.insert('', 'end',
                 values=(day, dow_name, start, end, brk, work_str, note), tags=(tag,))
 
-        self.total_hours_var.set(fmt_min(total_work) or '--')
+        self.total_hours_var.set(fmt_decimal(total_work) or '--')
 
         if yview_top > 0.0:
             self.schedule_tree.yview_moveto(yview_top)
@@ -881,6 +889,7 @@ class DailyReportApp:
         except Exception:
             pass
 
+        wb.calculation.fullCalcOnLoad = True
         try:
             wb.save(path)
         except Exception as e:

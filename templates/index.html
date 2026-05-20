@@ -1430,6 +1430,12 @@
     return `${h}:${String(m).padStart(2,'0')}`;
   }
 
+  function formatDecimalHours(min) {
+    if (!min) return '';
+    const s = parseFloat((min / 60).toFixed(2)).toString();
+    return s.includes('.') ? s : s + '.0';
+  }
+
   function getWeekdayWorkMin(dayKey) {
     const s = parseTimeToMin(document.querySelector(`[name="${dayKey}_start"]`)?.value);
     const e = parseTimeToMin(document.querySelector(`[name="${dayKey}_end"]`)?.value);
@@ -1548,14 +1554,14 @@
         const s = parseTimeToMin(start), e = parseTimeToMin(end), b = parseTimeToMin(brk);
         if (s !== null && e !== null && b !== null && e > s) {
           const wm = Math.max(0, e - s - b);
-          workStr = formatMin(wm);
+          workStr = formatDecimalHours(wm);
           totalWorkMin += wm;
           totalOverMin += Math.max(0, wm - STANDARD_WORK_MIN);
         }
         note = hasNoteEx ? exNotes[d] : defaultNote;
       } else if (isPaid) {
         rowCls = 'row-paid';
-        totalWorkMin += 450;
+        totalWorkMin += STANDARD_WORK_MIN;
         note = hasNoteEx ? exNotes[d] : '私用により、休暇';
       } else if (isSun) {
         rowCls = 'row-sun';
@@ -1575,7 +1581,7 @@
         const s = parseTimeToMin(start), e = parseTimeToMin(end), b = parseTimeToMin(brk);
         if (s !== null && e !== null && b !== null && e > s) {
           const wm = Math.max(0, e - s - b);
-          workStr = formatMin(wm);
+          workStr = formatDecimalHours(wm);
           totalWorkMin += wm;
           totalOverMin += Math.max(0, wm - STANDARD_WORK_MIN);
         }
@@ -1609,7 +1615,7 @@
 
     // ヘッダー隣の合計表示
     const totalEl = document.getElementById('totalWorkDisplay');
-    if (totalEl) totalEl.textContent = formatMin(totalWorkMin);
+    if (totalEl) totalEl.textContent = formatDecimalHours(totalWorkMin);
   }
 
   function refreshSummary() {

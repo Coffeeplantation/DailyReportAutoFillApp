@@ -246,6 +246,7 @@ def write_excel():
     except (IndexError, AttributeError):
         pass
 
+    wb.calculation.fullCalcOnLoad = True
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
