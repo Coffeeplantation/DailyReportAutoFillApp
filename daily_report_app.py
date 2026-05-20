@@ -551,10 +551,7 @@ class DailyReportApp:
                 start, end, brk = t['start'], t['end'], t['break']
                 work_str = fmt_decimal(t['work'])
                 total_work += t['work']
-                if same_note:
-                    note = note_workday
-                else:
-                    note = t['note'] or nex.get(day, note_workday)
+                note = t['note'] or (note_workday if same_note else nex.get(day, note_workday))
                 tag = 'exc'
             elif day in paid:
                 note = '私用により、休暇'
@@ -853,10 +850,7 @@ class DailyReportApp:
                     ws[f'{c}{r}'].value         = v
                     ws[f'{c}{r}'].number_format = 'h:mm'
                     ws[f'{c}{r}'].font          = blk
-                if same_note:
-                    note = note_workday
-                else:
-                    note = t['note'] or nex.get(day, note_workday)
+                note = t['note'] or (note_workday if same_note else nex.get(day, note_workday))
                 ws[f'{cn}{r}'].value = note
                 ws[f'{cn}{r}'].font  = blk
             elif day in paid:
