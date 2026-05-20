@@ -549,7 +549,6 @@ class DailyReportApp:
                     note = t['note'] or nex.get(day, note_workday)
                 tag = 'exc'
             elif day in paid:
-                work_str = '7:30'
                 total_work += 450
                 note = '私用により、休暇'
                 tag = 'paid'
