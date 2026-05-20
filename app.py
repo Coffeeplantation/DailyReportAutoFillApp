@@ -147,7 +147,6 @@ def write_excel():
     label_end    = request.form.get('label_end',    '終了時間')
     label_break  = request.form.get('label_break',  '休憩時間')
     label_note   = request.form.get('label_note',   '備考')
-    label_work   = request.form.get('label_work',   '勤務時間')
     note_workday = request.form.get('note_workday', '在宅勤務')
 
     # ヘッダー行をラベルで動的検索（見つからなければ19行目をフォールバック）
@@ -188,7 +187,6 @@ def write_excel():
     col_end   = find_column(ws, HEADER_ROW, label_end)   or 'I'
     col_break = find_column(ws, HEADER_ROW, label_break) or 'L'
     col_note  = find_column(ws, HEADER_ROW, label_note)  or 'S'
-    col_work  = find_column(ws, HEADER_ROW, label_work)  or 'O'
 
     black_font = Font(color='FF000000')
 
@@ -214,9 +212,6 @@ def write_excel():
             ws[f'{col_note}{row}'].value = note_exceptions.get(day, note_workday)
             ws[f'{col_note}{row}'].font = black_font
         elif day in paid_leave:
-            ws[f'{col_work}{row}'].value = time(7, 30)
-            ws[f'{col_work}{row}'].number_format = 'h:mm'
-            ws[f'{col_work}{row}'].font = black_font
             ws[f'{col_note}{row}'].value = note_exceptions.get(day, '私用により、休暇')
             ws[f'{col_note}{row}'].font = black_font
         elif weekday >= 5:

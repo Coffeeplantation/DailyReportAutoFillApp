@@ -832,7 +832,6 @@ class DailyReportApp:
         ce = self._find_col(ws, hr, label_end)   or 'I'
         cb = self._find_col(ws, hr, label_break) or 'L'
         cn = self._find_col(ws, hr, label_note)  or 'S'
-        cw = self._find_col(ws, hr, '勤務時間')  or 'O'
         blk = Font(color='000000')
 
         for day in range(1, last + 1):
@@ -855,9 +854,6 @@ class DailyReportApp:
                 ws[f'{cn}{r}'].value = note
                 ws[f'{cn}{r}'].font  = blk
             elif day in paid:
-                ws[f'{cw}{r}'].value = time(7, 30)
-                ws[f'{cw}{r}'].number_format = 'h:mm'
-                ws[f'{cw}{r}'].font  = blk
                 ws[f'{cn}{r}'].value = '私用により、休暇'
                 ws[f'{cn}{r}'].font  = blk
             elif wd >= 5:
