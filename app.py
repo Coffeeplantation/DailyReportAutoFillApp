@@ -691,5 +691,19 @@ def download_report():
     )
 
 
+@app.route('/api/exe')
+@auth.login_required
+def download_exe():
+    exe_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'dist', '日報自動入力アプリ.exe')
+    if not os.path.isfile(exe_path):
+        return jsonify({'error': 'exe ファイルが見つかりません。build.bat を実行してビルドしてください。'}), 404
+    return send_file(
+        exe_path,
+        as_attachment=True,
+        download_name='日報自動入力アプリ.exe',
+        mimetype='application/octet-stream'
+    )
+
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=False, port=5000)
