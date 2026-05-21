@@ -29,3 +29,11 @@ jobs:
           name: 日報自動入力アプリ
           path: dist/日報自動入力アプリ.exe
           retention-days: 30
+
+      - name: GitHub Release を作成・更新
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: 最新ビルド
+          files: dist/日報自動入力アプリ.exe
+          make_latest: true
