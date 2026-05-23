@@ -267,6 +267,7 @@ class DailyReportApp:
 
         # 月〜金の入力行
         self.time_vars = []
+        self.time_error_vars = [tk.StringVar(value='') for _ in range(5)]
         for i, name in enumerate(WEEKDAY_NAMES):
             ttk.Label(tbl, text=name, width=6, anchor='w').grid(
                 row=i + 1, column=0, padx=10, pady=4, sticky='w')
@@ -278,6 +279,9 @@ class DailyReportApp:
                     row=i + 1, column=col, padx=3, pady=4)
                 row_vars[key] = var
             self.time_vars.append(row_vars)
+            tk.Label(tbl, textvariable=self.time_error_vars[i],
+                     fg='#dc2626', font=('', 8)).grid(
+                row=i + 1, column=4, padx=(4, 8), pady=4, sticky='w')
 
         # 区切り線
         ttk.Separator(tbl, orient='horizontal').grid(
@@ -461,6 +465,24 @@ class DailyReportApp:
         ttk.Label(f, text='行をダブルクリックすると備考を編集できます', font=('', 8),
                   foreground='#666').pack(anchor='w', padx=8, pady=(0, 4))
 
+    def _validate_time_rows(self):
+        for i in range(5):
+            s_val = self.time_vars[i]['start'].get()
+            e_val = self.time_vars[i]['end'].get()
+            b_val = self.time_vars[i]['break'].get()
+            if not s_val or not e_val or not b_val:
+                self.time_error_vars[i].set('⚠ 未入力')
+                continue
+            s = time_to_min(s_val)
+            e = time_to_min(e_val)
+            if s is None or e is None:
+                self.time_error_vars[i].set('⚠ 形式エラー (HH:MM)')
+                continue
+            if e <= s:
+                self.time_error_vars[i].set('⚠ 終了は開始より後の時刻にしてください')
+                continue
+            self.time_error_vars[i].set('')
+
     def _schedule_refresh(self):
         if hasattr(self, '_refresh_id'):
             self.root.after_cancel(self._refresh_id)
@@ -469,6 +491,7 @@ class DailyReportApp:
     def _refresh_schedule(self):
         if not hasattr(self, 'schedule_tree'):
             return
+        self._validate_time_rows()
         try:
             year  = self.year_var.get()
             month = self.month_var.get()
@@ -512,7 +535,7 @@ class DailyReportApp:
                 }
 
         same_note    = self.same_note_var.get()
-        note_workday = self.note_workday_var.get().strip() or '在宅勤務'
+        note_workday = self.note_workday_var.get().strip()
 
         # 日付別備考（same_note=False のとき使用）
         nex = {}
@@ -803,7 +826,7 @@ class DailyReportApp:
                 tex[d] = {'start': s, 'end': e, 'break': b, 'note': row['note'].get().strip()}
 
         same_note    = self.same_note_var.get()
-        note_workday = self.note_workday_var.get().strip() or '在宅勤務'
+        note_workday = self.note_workday_var.get().strip()
 
         nex = {}
         if not same_note:
