@@ -204,6 +204,30 @@
     }
 
 
+    .time-step-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      font-size: 0.85rem;
+      color: #555;
+    }
+
+    .time-step-select {
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      padding: 5px 10px;
+      font-size: 0.85rem;
+      outline: none;
+      background: #fff;
+      cursor: pointer;
+    }
+
+    .time-step-select:focus {
+      border-color: #1a56db;
+      box-shadow: 0 0 0 3px rgba(26,86,219,0.1);
+    }
+
     .time-table td.row-error {
       text-align: left;
       padding: 8px 0 8px 8px;
@@ -885,6 +909,15 @@
     <!-- ① 曜日別勤務時間 -->
     <div class="card">
       <h2>曜日別の勤務時間</h2>
+      <div class="time-step-row">
+        <label for="timeStepSelect">時間入力単位</label>
+        <select id="timeStepSelect" class="time-step-select">
+          <option value="60">制限なし（1分単位）</option>
+          <option value="300">5分単位</option>
+          <option value="600">10分単位</option>
+          <option value="900">15分単位</option>
+        </select>
+      </div>
       <table class="time-table">
         <thead>
           <tr>
@@ -1032,8 +1065,23 @@
   const LABEL_IDS  = ['label_start','label_end','label_break','label_note','note_workday'];
   const STORAGE_KEY = 'dailyReport_timeSettings';
 
+  // 時間入力単位の適用
+  function applyTimeStep(stepSec) {
+    document.querySelectorAll('.time-table input[type="time"]').forEach(el => {
+      el.step = stepSec;
+    });
+  }
+
+  document.getElementById('timeStepSelect').addEventListener('change', function () {
+    applyTimeStep(this.value);
+    saveSettings();
+    validateTimeRows();
+  });
+
   // 各曜日行のバリデーション
   function validateTimeRows() {
+    const stepSec = parseInt(document.getElementById('timeStepSelect')?.value || '60');
+    const stepMin = stepSec / 60;
     const ROWS = [
       { key: 'monday',    id: 'err_monday' },
       { key: 'tuesday',   id: 'err_tuesday' },
@@ -1057,6 +1105,14 @@
         errEl.textContent = '⚠ 終了は開始より後の時刻にしてください';
         return;
       }
+      if (stepMin > 1) {
+        const sMin = s % 60;
+        const eMin = e % 60;
+        if (sMin % stepMin !== 0 || eMin % stepMin !== 0) {
+          errEl.textContent = `⚠ ${stepMin}分単位で入力してください`;
+          return;
+        }
+      }
       errEl.textContent = '';
     });
   }
@@ -1076,6 +1132,7 @@
       const el = document.getElementById(id);
       if (el) settings[id] = el.value;
     });
+    settings['timeStep'] = document.getElementById('timeStepSelect')?.value || '60';
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
 
     const notice = document.getElementById('autosaveNotice');
@@ -1107,6 +1164,8 @@
     document.getElementById('label_break').value  = '休憩時間';
     document.getElementById('label_note').value   = '備考';
     document.getElementById('note_workday').value = '在宅勤務';
+    const stepSel = document.getElementById('timeStepSelect');
+    if (stepSel) { stepSel.value = '60'; applyTimeStep('60'); }
 
     document.getElementById('timeExceptionRows').innerHTML = '';
     document.getElementById('exceptionRows').innerHTML     = '';
@@ -1141,6 +1200,10 @@
         const el = document.getElementById(id);
         if (el && settings[id] !== undefined) el.value = settings[id];
       });
+      if (settings['timeStep']) {
+        const sel = document.getElementById('timeStepSelect');
+        if (sel) { sel.value = settings['timeStep']; applyTimeStep(settings['timeStep']); }
+      }
     } catch (e) { /* 読み込み失敗時は初期値のまま */ }
   }
 

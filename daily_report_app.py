@@ -147,6 +147,7 @@ class DailyReportApp:
             },
             'note_workday': self.note_workday_var.get(),
             'same_note':    self.same_note_var.get(),
+            'time_step':    self.time_step_var.get(),
         }
         try:
             with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
@@ -167,6 +168,7 @@ class DailyReportApp:
         self.label_note_var.set(labels.get('note',   '備考'))
         self.note_workday_var.set(self.settings.get('note_workday', '在宅勤務'))
         self.same_note_var.set(self.settings.get('same_note', True))
+        self.time_step_var.set(self.settings.get('time_step', '1'))
         self._on_same_note_change_silent()
 
     # ── UI 構築 ──────────────────────────────────────────────────────────────
@@ -253,6 +255,17 @@ class DailyReportApp:
         self.note_workday_var = tk.StringVar(value='在宅勤務')
         self.same_note_var    = tk.BooleanVar(value=True)
 
+        # 時間入力単位
+        step_row = ttk.Frame(f)
+        step_row.pack(fill='x', padx=10, pady=(6, 2))
+        ttk.Label(step_row, text='時間入力単位:').pack(side='left')
+        self.time_step_var = tk.StringVar(value='1')
+        ttk.Combobox(step_row, textvariable=self.time_step_var,
+                     values=['1', '5', '10', '15'],
+                     width=4, state='readonly').pack(side='left', padx=6)
+        ttk.Label(step_row, text='分').pack(side='left')
+        self.time_step_var.trace_add('write', lambda *_: self._on_input_change())
+
         # テーブル部分（grid レイアウト用サブフレーム）
         tbl = ttk.Frame(f)
         tbl.pack(fill='x', padx=6, pady=(4, 2))
@@ -275,8 +288,9 @@ class DailyReportApp:
             for col, key in enumerate(('start', 'end', 'break'), 1):
                 var = tk.StringVar()
                 var.trace_add('write', lambda *_: self._on_input_change())
-                ttk.Entry(tbl, textvariable=var, width=9, justify='center').grid(
-                    row=i + 1, column=col, padx=3, pady=4)
+                entry = ttk.Entry(tbl, textvariable=var, width=9, justify='center')
+                entry.grid(row=i + 1, column=col, padx=3, pady=4)
+                entry.bind('<FocusOut>', lambda e, v=var: self._snap_time(v))
                 row_vars[key] = var
             self.time_vars.append(row_vars)
             tk.Label(tbl, textvariable=self.time_error_vars[i],
@@ -366,9 +380,10 @@ class DailyReportApp:
 
         date_btn.config(command=open_cal)
 
-        ttk.Entry(rf, textvariable=start_v, width=7, justify='center').grid(row=0, column=1, padx=2)
-        ttk.Entry(rf, textvariable=end_v,   width=7, justify='center').grid(row=0, column=2, padx=2)
-        ttk.Entry(rf, textvariable=break_v, width=7, justify='center').grid(row=0, column=3, padx=2)
+        for col, var in enumerate([start_v, end_v, break_v], 1):
+            e = ttk.Entry(rf, textvariable=var, width=7, justify='center')
+            e.grid(row=0, column=col, padx=2)
+            e.bind('<FocusOut>', lambda ev, v=var: self._snap_time(v))
         ttk.Entry(rf, textvariable=note_v,  width=14).grid(row=0, column=4, padx=2)
 
         def remove(r=row_data):
@@ -465,7 +480,30 @@ class DailyReportApp:
         ttk.Label(f, text='行をダブルクリックすると備考を編集できます', font=('', 8),
                   foreground='#666').pack(anchor='w', padx=8, pady=(0, 4))
 
+    def _snap_time(self, var):
+        val = var.get().strip()
+        if not val:
+            return
+        t = parse_time(val)
+        if t is None:
+            return
+        try:
+            step = int(self.time_step_var.get())
+        except Exception:
+            step = 1
+        if step <= 1:
+            return
+        total_min = t.hour * 60 + t.minute
+        snapped = round(total_min / step) * step
+        snapped = min(snapped, 23 * 60 + 59)
+        h, m = divmod(snapped, 60)
+        var.set(f'{h:02d}:{m:02d}')
+
     def _validate_time_rows(self):
+        try:
+            step = int(self.time_step_var.get())
+        except Exception:
+            step = 1
         for i in range(5):
             s_val = self.time_vars[i]['start'].get()
             e_val = self.time_vars[i]['end'].get()
@@ -481,6 +519,10 @@ class DailyReportApp:
             if e <= s:
                 self.time_error_vars[i].set('⚠ 終了は開始より後の時刻にしてください')
                 continue
+            if step > 1:
+                if (s % 60) % step != 0 or (e % 60) % step != 0:
+                    self.time_error_vars[i].set(f'⚠ {step}分単位で入力してください')
+                    continue
             self.time_error_vars[i].set('')
 
     def _schedule_refresh(self):
