@@ -203,6 +203,19 @@
       height: 16px;
     }
 
+
+    .time-table td.row-error {
+      text-align: left;
+      padding: 8px 0 8px 8px;
+    }
+
+    .time-error-msg {
+      font-size: 0.78rem;
+      color: #dc2626;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
     .note-row {
       display: flex;
       align-items: center;
@@ -879,6 +892,7 @@
             <th><input class="note-input" id="label_start" name="label_start" type="text" value="開始時間"></th>
             <th><input class="note-input" id="label_end" name="label_end" type="text" value="終了時間"></th>
             <th><input class="note-input" id="label_break" name="label_break" type="text" value="休憩時間"></th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -887,30 +901,35 @@
             <td><input type="time" name="monday_start" value="09:00" required></td>
             <td><input type="time" name="monday_end" value="17:30" required></td>
             <td><input type="time" name="monday_break" value="01:00" required></td>
+            <td class="row-error"><span class="time-error-msg" id="err_monday"></span></td>
           </tr>
           <tr>
             <td class="day-label">火曜日</td>
             <td><input type="time" name="tuesday_start" value="09:00" required></td>
             <td><input type="time" name="tuesday_end" value="17:30" required></td>
             <td><input type="time" name="tuesday_break" value="01:00" required></td>
+            <td class="row-error"><span class="time-error-msg" id="err_tuesday"></span></td>
           </tr>
           <tr>
             <td class="day-label">水曜日</td>
             <td><input type="time" name="wednesday_start" value="09:00" required></td>
             <td><input type="time" name="wednesday_end" value="17:30" required></td>
             <td><input type="time" name="wednesday_break" value="01:00" required></td>
+            <td class="row-error"><span class="time-error-msg" id="err_wednesday"></span></td>
           </tr>
           <tr>
             <td class="day-label">木曜日</td>
             <td><input type="time" name="thursday_start" value="09:00" required></td>
             <td><input type="time" name="thursday_end" value="17:30" required></td>
             <td><input type="time" name="thursday_break" value="01:00" required></td>
+            <td class="row-error"><span class="time-error-msg" id="err_thursday"></span></td>
           </tr>
           <tr>
             <td class="day-label">金曜日</td>
             <td><input type="time" name="friday_start" value="09:00" required></td>
             <td><input type="time" name="friday_end" value="17:30" required></td>
             <td><input type="time" name="friday_break" value="01:00" required></td>
+            <td class="row-error"><span class="time-error-msg" id="err_friday"></span></td>
           </tr>
         </tbody>
       </table>
@@ -933,7 +952,7 @@
           <label>備考列タイトル</label>
           <input class="note-input" id="label_note" name="label_note" type="text" value="備考">
           <label>出勤日の記入内容</label>
-          <input class="note-input" id="note_workday" name="note_workday" type="text" value="在宅勤務">
+          <input class="note-input" id="note_workday" name="note_workday" type="text" value="在宅勤務" placeholder="（空欄にする場合は削除）">
         </div>
 
         <div class="exception-section" id="exceptionSection">
@@ -1013,6 +1032,35 @@
   const LABEL_IDS  = ['label_start','label_end','label_break','label_note','note_workday'];
   const STORAGE_KEY = 'dailyReport_timeSettings';
 
+  // 各曜日行のバリデーション
+  function validateTimeRows() {
+    const ROWS = [
+      { key: 'monday',    id: 'err_monday' },
+      { key: 'tuesday',   id: 'err_tuesday' },
+      { key: 'wednesday', id: 'err_wednesday' },
+      { key: 'thursday',  id: 'err_thursday' },
+      { key: 'friday',    id: 'err_friday' },
+    ];
+    ROWS.forEach(({ key, id }) => {
+      const errEl = document.getElementById(id);
+      if (!errEl) return;
+      const startVal = document.querySelector(`[name="${key}_start"]`)?.value;
+      const endVal   = document.querySelector(`[name="${key}_end"]`)?.value;
+      const brkVal   = document.querySelector(`[name="${key}_break"]`)?.value;
+      if (!startVal || !endVal || !brkVal) {
+        errEl.textContent = '⚠ 未入力';
+        return;
+      }
+      const s = parseTimeToMin(startVal);
+      const e = parseTimeToMin(endVal);
+      if (e <= s) {
+        errEl.textContent = '⚠ 終了は開始より後の時刻にしてください';
+        return;
+      }
+      errEl.textContent = '';
+    });
+  }
+
   let _saveTimer = null;
 
   // 設定を localStorage に保存
@@ -1086,12 +1134,12 @@
       DAY_NAMES.forEach(day => {
         TIME_TYPES.forEach(type => {
           const el = document.querySelector(`[name="${day}_${type}"]`);
-          if (el && settings[`${day}_${type}`]) el.value = settings[`${day}_${type}`];
+          if (el && settings[`${day}_${type}`] !== undefined) el.value = settings[`${day}_${type}`];
         });
       });
       LABEL_IDS.forEach(id => {
         const el = document.getElementById(id);
-        if (el && settings[id]) el.value = settings[id];
+        if (el && settings[id] !== undefined) el.value = settings[id];
       });
     } catch (e) { /* 読み込み失敗時は初期値のまま */ }
   }
@@ -1619,6 +1667,7 @@
   }
 
   function refreshSummary() {
+    validateTimeRows();
     buildMonthlySchedule();
   }
 
