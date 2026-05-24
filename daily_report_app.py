@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import json
 import os
+import sys
 from datetime import date, time
 import calendar as cal_module
 import openpyxl
@@ -9,7 +10,10 @@ from openpyxl.styles import Font
 import jpholiday
 
 WEEKDAY_NAMES = ['月曜日', '火曜日', '水曜日', '木曜日', '金曜日']
-SETTINGS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'settings.json')
+# PyInstaller exe では __file__ が一時ディレクトリを指すため sys.executable を使用
+_BASE_DIR = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) \
+            else os.path.dirname(os.path.abspath(__file__))
+SETTINGS_FILE = os.path.join(_BASE_DIR, 'settings.json')
 DEFAULT_TIMES = {'start': '09:00', 'end': '17:30', 'break': '01:00'}
 STANDARD_WORK_MIN = 7 * 60 + 30
 
