@@ -1245,7 +1245,11 @@
         if (sel) { sel.value = settings['timeStep']; applyTimeStep(settings['timeStep']); }
       }
 
-      // 当月のデータのみ復元
+      // 対象年月を復元
+      if (settings['savedYear'])  document.getElementById('yearInput').value  = settings['savedYear'];
+      if (settings['savedMonth']) document.getElementById('monthInput').value = settings['savedMonth'];
+
+      // 保存時と同じ年月のデータを復元
       const currentYear  = parseInt(document.getElementById('yearInput').value);
       const currentMonth = parseInt(document.getElementById('monthInput').value);
       if (settings['savedYear'] === currentYear && settings['savedMonth'] === currentMonth) {
