@@ -1,8 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import json
-import os
-import sys
+import winreg
 from datetime import date, time
 import calendar as cal_module
 import openpyxl
@@ -10,10 +9,8 @@ from openpyxl.styles import Font
 import jpholiday
 
 WEEKDAY_NAMES = ['月曜日', '火曜日', '水曜日', '木曜日', '金曜日']
-# PyInstaller exe では __file__ が一時ディレクトリを指すため sys.executable を使用
-_BASE_DIR = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) \
-            else os.path.dirname(os.path.abspath(__file__))
-SETTINGS_FILE = os.path.join(_BASE_DIR, 'settings.json')
+REG_KEY_PATH  = r'Software\DailyReportApp'
+REG_VALUE     = 'settings'
 DEFAULT_TIMES = {'start': '09:00', 'end': '17:30', 'break': '01:00'}
 STANDARD_WORK_MIN = 7 * 60 + 30
 
@@ -132,8 +129,10 @@ class DailyReportApp:
 
     def _load_settings(self):
         try:
-            with open(SETTINGS_FILE, encoding='utf-8') as f:
-                return json.load(f)
+            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_KEY_PATH)
+            raw, _ = winreg.QueryValueEx(key, REG_VALUE)
+            winreg.CloseKey(key)
+            return json.loads(raw)
         except Exception:
             return {}
 
@@ -169,8 +168,10 @@ class DailyReportApp:
             'manual_notes': {str(k): v for k, v in self.manual_notes.items()},
         }
         try:
-            with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
+            key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, REG_KEY_PATH)
+            winreg.SetValueEx(key, REG_VALUE, 0, winreg.REG_SZ,
+                              json.dumps(data, ensure_ascii=False))
+            winreg.CloseKey(key)
         except Exception as e:
             messagebox.showwarning('警告', f'設定の保存に失敗しました:\n{e}')
 
@@ -189,11 +190,19 @@ class DailyReportApp:
         self.same_note_var.set(self.settings.get('same_note', True))
         self.time_step_var.set(self.settings.get('time_step', '1'))
 
+        # 対象年月を復元（_on_ym_change が manual_notes をクリアするため先に実行）
+        if 'year' in self.settings:
+            try: self.year_var.set(int(self.settings['year']))
+            except Exception: pass
+        if 'month' in self.settings:
+            try: self.month_var.set(int(self.settings['month']))
+            except Exception: pass
+
         self.file_var.set(self.settings.get('file_path', ''))
 
-        today = date.today()
-        if (self.settings.get('year') == today.year and
-                self.settings.get('month') == today.month):
+        # 保存済みの月データを復元（年月が保存されている場合のみ）
+        saved_month = self.settings.get('month')
+        if saved_month:
             if self.settings.get('paid_leave_enabled'):
                 self.pl_var.set(True)
                 self._toggle_pl()
@@ -204,7 +213,7 @@ class DailyReportApp:
                 self._add_ex_row()
                 r = self.exception_rows[-1]
                 r['day'].set(ex['day'])
-                r['date_btn'].config(text=f"{today.month}月{ex['day']}日")
+                r['date_btn'].config(text=f"{saved_month}月{ex['day']}日")
                 r['start'].set(ex['start'])
                 r['end'].set(ex['end'])
                 r['break'].set(ex.get('break', '01:00'))
@@ -214,8 +223,9 @@ class DailyReportApp:
                     self._add_note_ex_row()
                     r = self.note_exception_rows[-1]
                     r['day'].set(nex['day'])
-                    r['date_btn'].config(text=f"{today.month}月{nex['day']}日")
+                    r['date_btn'].config(text=f"{saved_month}月{nex['day']}日")
                     r['note'].set(nex['note'])
+            # manual_notes は _on_ym_change によるクリア後に復元
             self.manual_notes = {
                 int(k): v for k, v in self.settings.get('manual_notes', {}).items()
             }
