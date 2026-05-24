@@ -148,6 +148,21 @@ class DailyReportApp:
             'note_workday': self.note_workday_var.get(),
             'same_note':    self.same_note_var.get(),
             'time_step':    self.time_step_var.get(),
+            'file_path':    self.file_var.get(),
+            'year':         self.year_var.get(),
+            'month':        self.month_var.get(),
+            'paid_leave_enabled': self.pl_var.get(),
+            'paid_leave_days': [d for d, v in self.day_check_vars.items() if v.get()],
+            'exception_rows': [
+                {'day': r['day'].get(), 'start': r['start'].get(),
+                 'end': r['end'].get(), 'break': r['break'].get(), 'note': r['note'].get()}
+                for r in self.exception_rows if r['day'].get()
+            ],
+            'note_exception_rows': [
+                {'day': r['day'].get(), 'note': r['note'].get()}
+                for r in self.note_exception_rows if r['day'].get()
+            ],
+            'manual_notes': {str(k): v for k, v in self.manual_notes.items()},
         }
         try:
             with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
@@ -169,6 +184,38 @@ class DailyReportApp:
         self.note_workday_var.set(self.settings.get('note_workday', '在宅勤務'))
         self.same_note_var.set(self.settings.get('same_note', True))
         self.time_step_var.set(self.settings.get('time_step', '1'))
+
+        self.file_var.set(self.settings.get('file_path', ''))
+
+        today = date.today()
+        if (self.settings.get('year') == today.year and
+                self.settings.get('month') == today.month):
+            if self.settings.get('paid_leave_enabled'):
+                self.pl_var.set(True)
+                self._toggle_pl()
+                for d in self.settings.get('paid_leave_days', []):
+                    if d in self.day_check_vars:
+                        self.day_check_vars[d].set(True)
+            for ex in self.settings.get('exception_rows', []):
+                self._add_ex_row()
+                r = self.exception_rows[-1]
+                r['day'].set(ex['day'])
+                r['date_btn'].config(text=f"{today.month}月{ex['day']}日")
+                r['start'].set(ex['start'])
+                r['end'].set(ex['end'])
+                r['break'].set(ex.get('break', '01:00'))
+                r['note'].set(ex['note'])
+            if not self.same_note_var.get():
+                for nex in self.settings.get('note_exception_rows', []):
+                    self._add_note_ex_row()
+                    r = self.note_exception_rows[-1]
+                    r['day'].set(nex['day'])
+                    r['date_btn'].config(text=f"{today.month}月{nex['day']}日")
+                    r['note'].set(nex['note'])
+            self.manual_notes = {
+                int(k): v for k, v in self.settings.get('manual_notes', {}).items()
+            }
+
         self._on_same_note_change_silent()
 
     # ── UI 構築 ──────────────────────────────────────────────────────────────
@@ -529,6 +576,7 @@ class DailyReportApp:
         if hasattr(self, '_refresh_id'):
             self.root.after_cancel(self._refresh_id)
         self._refresh_id = self.root.after(300, self._refresh_schedule)
+        self._schedule_auto_save()
 
     def _refresh_schedule(self):
         if not hasattr(self, 'schedule_tree'):

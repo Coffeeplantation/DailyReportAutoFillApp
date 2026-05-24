@@ -1064,6 +1064,8 @@
   const TIME_TYPES = ['start','end','break'];
   const LABEL_IDS  = ['label_start','label_end','label_break','label_note','note_workday'];
   const STORAGE_KEY = 'dailyReport_timeSettings';
+  let _isLoading = true;
+  let _autoSaveTimer = null;
 
   // 時間入力単位の適用
   function applyTimeStep(stepSec) {
@@ -1133,12 +1135,49 @@
       if (el) settings[id] = el.value;
     });
     settings['timeStep'] = document.getElementById('timeStepSelect')?.value || '60';
+
+    // 月ごとのデータ
+    settings['savedYear']     = getYear();
+    settings['savedMonth']    = getMonth();
+    settings['hasPaidLeave']  = document.getElementById('hasPaidLeave').checked;
+    settings['paidLeaveDays'] = [...selectedDays];
+
+    const timeExRows = [];
+    document.querySelectorAll('.time-exception-row').forEach(row => {
+      const day = row.querySelector('[name="time_ex_day"]')?.value;
+      if (!day) return;
+      timeExRows.push({
+        day,
+        start: row.querySelector('[name="time_ex_start"]')?.value || '',
+        end:   row.querySelector('[name="time_ex_end"]')?.value   || '',
+        brk:   row.querySelector('[name="time_ex_break"]')?.value || '',
+      });
+    });
+    settings['timeExceptions'] = timeExRows;
+
+    const noteExRows = [];
+    document.querySelectorAll('.exception-row').forEach(row => {
+      const day = row.querySelector('[name="exception_day"]')?.value;
+      if (!day) return;
+      noteExRows.push({ day, note: row.querySelector('[name="exception_note"]')?.value || '' });
+    });
+    settings['noteExceptions'] = noteExRows;
+
+    settings['manualNotes'] = {};
+    Object.entries(manualNotes).forEach(([k, v]) => { settings['manualNotes'][parseInt(k)] = v; });
+
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
 
     const notice = document.getElementById('autosaveNotice');
     notice.textContent = '✓ 自動保存しました';
     if (_saveTimer) clearTimeout(_saveTimer);
     _saveTimer = setTimeout(() => { notice.textContent = ''; }, 2000);
+  }
+
+  function scheduleAutoSave() {
+    if (_isLoading) return;
+    if (_autoSaveTimer) clearTimeout(_autoSaveTimer);
+    _autoSaveTimer = setTimeout(saveSettings, 500);
   }
 
   // 初期値にリセット
@@ -1190,6 +1229,7 @@
     if (!saved) return;
     try {
       const settings = JSON.parse(saved);
+      // 月をまたいでも引き継ぐ設定
       DAY_NAMES.forEach(day => {
         TIME_TYPES.forEach(type => {
           const el = document.querySelector(`[name="${day}_${type}"]`);
@@ -1203,6 +1243,25 @@
       if (settings['timeStep']) {
         const sel = document.getElementById('timeStepSelect');
         if (sel) { sel.value = settings['timeStep']; applyTimeStep(settings['timeStep']); }
+      }
+
+      // 当月のデータのみ復元
+      const currentYear  = parseInt(document.getElementById('yearInput').value);
+      const currentMonth = parseInt(document.getElementById('monthInput').value);
+      if (settings['savedYear'] === currentYear && settings['savedMonth'] === currentMonth) {
+        if (settings['hasPaidLeave'] && (settings['paidLeaveDays'] || []).length) {
+          document.getElementById('hasPaidLeave').checked = true;
+          window._pendingPaidLeave = (settings['paidLeaveDays'] || []).map(Number);
+        }
+        (settings['timeExceptions'] || []).forEach(ex => {
+          addTimeExceptionRow(ex.day, ex.start, ex.end, ex.brk);
+        });
+        (settings['noteExceptions'] || []).forEach(ex => {
+          addExceptionRow(ex.day, ex.note);
+        });
+        Object.entries(settings['manualNotes'] || {}).forEach(([k, v]) => {
+          manualNotes[parseInt(k)] = v;
+        });
       }
     } catch (e) { /* 読み込み失敗時は初期値のまま */ }
   }
@@ -1220,6 +1279,21 @@
       holidays = await res.json();
     } catch (e) {
       holidays = {};
+    }
+    // 初回ロード時の有給取得日を復元（カレンダー構築が必要なためここで実行）
+    if (window._pendingPaidLeave) {
+      if (document.getElementById('hasPaidLeave').checked) {
+        buildCalendar();
+        document.getElementById('calendarContainer').style.display = 'block';
+        window._pendingPaidLeave.forEach(day => {
+          selectedDays.add(day);
+          const el = document.querySelector(`.cal-day[data-day="${day}"]`);
+          if (el) el.classList.add('selected');
+        });
+        document.getElementById('paidLeaveDates').value =
+          [...selectedDays].sort((a, b) => a - b).join(',');
+      }
+      delete window._pendingPaidLeave;
     }
     refreshSummary();
   }
@@ -1272,6 +1346,7 @@
     delete manualNotes[day];
     document.getElementById('paidLeaveDates').value = [...selectedDays].sort((a,b)=>a-b).join(',');
     refreshSummary();
+    scheduleAutoSave();
   }
 
   // 備考 例外行を追加
@@ -1288,12 +1363,18 @@
       <input type="hidden" class="ex-day-input" name="exception_day" value="${day}">
       <input type="text" class="exception-note-input" name="exception_note"
              placeholder="${defaultNote}" value="${noteVal}">
-      <button type="button" class="del-btn" onclick="this.closest('.exception-row').remove(); buildMonthlySchedule()">✕</button>
+      <button type="button" class="del-btn" onclick="removeExRow(this,'.exception-row')">✕</button>
     `;
     document.getElementById('exceptionRows').appendChild(row);
   }
 
-  document.getElementById('addExceptionBtn').addEventListener('click', () => addExceptionRow());
+  function removeExRow(btn, selector) {
+    btn.closest(selector).remove();
+    buildMonthlySchedule();
+    scheduleAutoSave();
+  }
+
+  document.getElementById('addExceptionBtn').addEventListener('click', () => { addExceptionRow(); scheduleAutoSave(); });
 
   // 例外備考の入力変更 → 月間スケジュール再描画（動的行なのでイベント委譲）
   document.getElementById('exceptionRows').addEventListener('input', (e) => {
@@ -1301,10 +1382,11 @@
       const day = parseInt(e.target.closest('.exception-row')?.querySelector('[name="exception_day"]')?.value);
       if (day) delete manualNotes[day];
       buildMonthlySchedule();
+      scheduleAutoSave();
     }
   });
   document.getElementById('timeExceptionRows').addEventListener('change', (e) => {
-    if (e.target.type === 'time') buildMonthlySchedule();
+    if (e.target.type === 'time') { buildMonthlySchedule(); scheduleAutoSave(); }
   });
 
   // 時間 例外行を追加
@@ -1323,12 +1405,12 @@
       <input type="time" name="time_ex_end" value="${end}">
       <span class="time-exc-label">休憩</span>
       <input type="time" name="time_ex_break" value="${brk}">
-      <button type="button" class="del-btn" onclick="this.closest('.time-exception-row').remove(); buildMonthlySchedule()">✕</button>
+      <button type="button" class="del-btn" onclick="removeExRow(this,'.time-exception-row')">✕</button>
     `;
     document.getElementById('timeExceptionRows').appendChild(row);
   }
 
-  document.getElementById('addTimeExceptionBtn').addEventListener('click', () => addTimeExceptionRow());
+  document.getElementById('addTimeExceptionBtn').addEventListener('click', () => { addTimeExceptionRow(); scheduleAutoSave(); });
 
   // ── 例外日カレンダー モーダル ──
   let exCalTargetRow = null;
@@ -1402,6 +1484,7 @@
     delete manualNotes[day];
     closeExCal();
     buildMonthlySchedule();
+    scheduleAutoSave();
   }
 
   // 年月変更時：カレンダーと例外行をリセット
@@ -1450,6 +1533,7 @@
       document.getElementById('paidLeaveDates').value = '';
       refreshSummary();
     }
+    scheduleAutoSave();
   });
 
   // ファイル選択表示
@@ -1732,6 +1816,7 @@
   function refreshSummary() {
     validateTimeRows();
     buildMonthlySchedule();
+    scheduleAutoSave();
   }
 
   // ── 月間スケジュール 備考インライン編集 ──
@@ -1741,6 +1826,7 @@
     const day = parseInt(noteDiv.dataset.day);
     manualNotes[day] = noteDiv.textContent;
     noteDiv.classList.add('note-manual');
+    scheduleAutoSave();
   });
 
   document.getElementById('monthlyBody').addEventListener('focusout', (e) => {
@@ -1751,6 +1837,7 @@
     if (val === noteDiv.dataset.auto) {
       delete manualNotes[day];
       noteDiv.classList.remove('note-manual');
+      scheduleAutoSave();
     }
   });
 
@@ -1769,9 +1856,12 @@
   });
 
   // 起動時に保存済み設定を読み込み、祝日を自動取得
-  loadSettings();
-  refreshSummary();
-  fetchHolidays();
+  (async () => {
+    loadSettings();
+    refreshSummary();
+    await fetchHolidays();
+    _isLoading = false;
+  })();
 </script>
 </body>
 </html>
