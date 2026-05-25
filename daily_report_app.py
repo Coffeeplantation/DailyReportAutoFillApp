@@ -1,7 +1,8 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import json
-import winreg
+import sys
+from pathlib import Path
 from datetime import date, time
 import calendar as cal_module
 import openpyxl
@@ -9,8 +10,8 @@ from openpyxl.styles import Font
 import jpholiday
 
 WEEKDAY_NAMES = ['月曜日', '火曜日', '水曜日', '木曜日', '金曜日']
-REG_KEY_PATH  = r'Software\DailyReportApp'
-REG_VALUE     = 'settings'
+SETTINGS_FILE = (Path(sys.executable).parent if getattr(sys, 'frozen', False)
+                 else Path(__file__).parent) / 'settings.json'
 DEFAULT_TIMES = {'start': '09:00', 'end': '17:30', 'break': '01:00'}
 STANDARD_WORK_MIN = 7 * 60 + 30
 
@@ -129,10 +130,7 @@ class DailyReportApp:
 
     def _load_settings(self):
         try:
-            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_KEY_PATH)
-            raw, _ = winreg.QueryValueEx(key, REG_VALUE)
-            winreg.CloseKey(key)
-            return json.loads(raw)
+            return json.loads(SETTINGS_FILE.read_text(encoding='utf-8'))
         except Exception:
             return {}
 
@@ -168,10 +166,8 @@ class DailyReportApp:
             'manual_notes': {str(k): v for k, v in self.manual_notes.items()},
         }
         try:
-            key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, REG_KEY_PATH)
-            winreg.SetValueEx(key, REG_VALUE, 0, winreg.REG_SZ,
-                              json.dumps(data, ensure_ascii=False))
-            winreg.CloseKey(key)
+            SETTINGS_FILE.write_text(
+                json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
         except Exception as e:
             messagebox.showwarning('警告', f'設定の保存に失敗しました:\n{e}')
 
