@@ -79,7 +79,7 @@ Python・インストール作業は不要です。
 | 有給取得日・例外日・手動備考 | 同じ月のみ復元 |
 
 - **ウェブ版**：ブラウザの `localStorage` に自動保存
-- **exe 版**：Windows レジストリ（`HKEY_CURRENT_USER\Software\DailyReportApp`）に自動保存
+- **exe 版**：exe と同じフォルダの `settings.json` に自動保存
 
 ---
 
