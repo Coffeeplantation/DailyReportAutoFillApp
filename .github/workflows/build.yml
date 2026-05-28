@@ -20,10 +20,23 @@ jobs:
           python-version: "3.11"
 
       - name: 依存パッケージのインストール
-        run: pip install pyinstaller openpyxl jpholiday
+        run: pip install pyinstaller openpyxl jpholiday flask flask-httpauth python-dotenv werkzeug
 
       - name: EXE ビルド
         run: pyinstaller --onefile --windowed --name "DailyReportApp" daily_report_app.py
+
+      - name: ドキュメント（Excel）生成
+        run: |
+          python -c "
+          import sys, os
+          sys.path.insert(0, '.')
+          from app import _build_manual, _build_report
+          os.makedirs('dist_docs', exist_ok=True)
+          with open('dist_docs/manual.xlsx', 'wb') as f:
+              f.write(_build_manual().read())
+          with open('dist_docs/report.xlsx', 'wb') as f:
+              f.write(_build_report().read())
+          "
 
       - name: 成果物をアップロード
         uses: actions/upload-artifact@v4
@@ -37,5 +50,8 @@ jobs:
         with:
           tag_name: latest
           name: 最新ビルド
-          files: dist/DailyReportApp.exe
+          files: |
+            dist/DailyReportApp.exe
+            dist_docs/manual.xlsx
+            dist_docs/report.xlsx
           make_latest: true
