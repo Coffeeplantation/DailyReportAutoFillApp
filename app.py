@@ -432,12 +432,13 @@ def _build_manual() -> io.BytesIO:
 @app.route('/api/manual')
 @auth.login_required
 def download_manual():
-    buf = _build_manual()
+    from build_pptx import _build_manual_pptx
+    buf = _build_manual_pptx()
     return send_file(
         buf,
         as_attachment=True,
-        download_name='日報アプリ_使い方ガイド.xlsx',
-        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        download_name='日報アプリ_使い方ガイド.pptx',
+        mimetype='application/vnd.openxmlformats-officedocument.presentationml.presentation'
     )
 
 
@@ -683,12 +684,13 @@ def _build_report() -> io.BytesIO:
 @app.route('/api/report')
 @auth.login_required
 def download_report():
-    buf = _build_report()
+    from build_pptx import _build_report_pptx
+    buf = _build_report_pptx()
     return send_file(
         buf,
         as_attachment=True,
-        download_name='日報アプリ_導入説明資料.xlsx',
-        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        download_name='日報アプリ_導入説明資料.pptx',
+        mimetype='application/vnd.openxmlformats-officedocument.presentationml.presentation'
     )
 
 
