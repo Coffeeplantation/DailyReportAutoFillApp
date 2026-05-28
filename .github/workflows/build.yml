@@ -26,17 +26,7 @@ jobs:
         run: pyinstaller --onefile --windowed --name "DailyReportApp" daily_report_app.py
 
       - name: ドキュメント（Excel）生成
-        run: |
-          python -c "
-          import sys, os
-          sys.path.insert(0, '.')
-          from app import _build_manual, _build_report
-          os.makedirs('dist_docs', exist_ok=True)
-          with open('dist_docs/manual.xlsx', 'wb') as f:
-              f.write(_build_manual().read())
-          with open('dist_docs/report.xlsx', 'wb') as f:
-              f.write(_build_report().read())
-          "
+        run: python generate_docs.py
 
       - name: 成果物をアップロード
         uses: actions/upload-artifact@v4
