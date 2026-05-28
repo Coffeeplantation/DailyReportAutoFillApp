@@ -1087,9 +1087,9 @@ def _build_setup_guide_pptx():
     for i, (icon_s, text) in enumerate([
         ("①", "GitHub にログイン後、右上のアイコン → 「Settings」を開きます。"),
         ("②", "左メニューの「Password and authentication」をクリックします。"),
-        ("③", "ページ下部「Social accounts」→「Link Google account」をクリック。"),
-        ("④", "Google のログイン画面が開くので、STEP 1 のアカウントを選択します。"),
-        ("⑤", "「Connected accounts」に Google が追加されれば連携完了です。"),
+        ("③", "ページ下部「Connected accounts」（または「Social accounts」）セクションを探します。"),
+        ("④", "「Connect Google account」または「Add account」ボタンをクリックし、STEP 1 のアカウントを選択します。"),
+        ("⑤", "Google が一覧に追加されれば連携完了です。※ GitHub の UI バージョンにより表記が異なる場合があります。"),
     ]):
         bg = ACCENT2 if i % 2 == 0 else WHITE
         rr = _rbox(sl, ML, CY + Inches(0.56) + Inches(0.65) * i, half5, Inches(0.61), bg, GRAY2)
@@ -1178,24 +1178,26 @@ def _build_setup_guide_pptx():
                 ml=Inches(0.02), mt=Inches(0.04))
         _tb(sl, ML + Inches(0.5), CY + Inches(0.9) + Inches(0.7) * i + Inches(0.12),
             CW - Inches(0.55), Inches(0.5), text, size=11, color=DARK)
-    # Claude Code 確認
+    # Pro 登録完了の確認 + 次のステップ案内
     cc_y = CY + Inches(0.9) + Inches(0.7) * 4 + Inches(0.12)
     cc_head = _rbox(sl, ML, cc_y, CW, Inches(0.44), NAVY_D)
-    _set_tf(cc_head, "Claude Code の利用確認（Web 版）", size=13, bold=True,
+    _set_tf(cc_head, "Pro 登録完了の確認と次のステップ", size=13, bold=True,
             color=WHITE, ml=Inches(0.2), mt=Inches(0.09))
-    for i, (icon_s, text) in enumerate([
-        ("①", "claude.ai にアクセスし、チャット画面が開いていることを確認します。"),
-        ("②", "右上のメニューから「Claude Code」または「Use Claude Code」を選択します。"),
-        ("③", "コマンド入力欄が表示されれば Pro プランで Claude Code が有効になっています。"),
+    for i, (icon_s, text, lc) in enumerate([
+        ("✅", "claude.ai のダッシュボード左下またはアカウントメニューに「Pro」バッジが表示されれば登録完了です。",
+         ANT_RUST),
+        ("\U0001f4bb", "Claude Code は CLI（ターミナル）ツールです。Web ブラウザの claude.ai から直接起動する機能はありません。",
+         MUTED),
+        ("\U000027a1", "次の STEP 4 で GitHub の Codespace（ブラウザ上のターミナル）を起動し、そこで Claude Code をインストール・使用します。",
+         NAVY),
     ]):
-        bg = PURPLE_L if i % 2 == 0 else WHITE
-        row = _rbox(sl, ML, cc_y + Inches(0.44) + Inches(0.56) * i, CW, Inches(0.52), bg, GRAY2)
-        badge = _oval(sl, ML + Inches(0.1), cc_y + Inches(0.44) + Inches(0.56) * i + Inches(0.12),
-                      Inches(0.26), Inches(0.26), PURPLE_D)
-        _set_tf(badge, icon_s, size=7, bold=True, color=WHITE, align=PP_ALIGN.CENTER,
-                ml=Inches(0.02), mt=Inches(0.03))
-        _tb(sl, ML + Inches(0.44), cc_y + Inches(0.44) + Inches(0.56) * i + Inches(0.08),
-            CW - Inches(0.5), Inches(0.42), text, size=11, color=DARK)
+        bg = PURPLE_L if i == 0 else (ACCENT2 if i == 2 else WHITE)
+        row = _rbox(sl, ML, cc_y + Inches(0.44) + Inches(0.6) * i, CW, Inches(0.56), bg, GRAY2)
+        _box(sl, ML, cc_y + Inches(0.44) + Inches(0.6) * i, Inches(0.06), Inches(0.56), lc)
+        _tb(sl, ML + Inches(0.2), cc_y + Inches(0.44) + Inches(0.6) * i + Inches(0.06),
+            Inches(0.3), Inches(0.38), icon_s, size=14, align=PP_ALIGN.CENTER)
+        _tb(sl, ML + Inches(0.56), cc_y + Inches(0.44) + Inches(0.6) * i + Inches(0.1),
+            CW - Inches(0.62), Inches(0.42), text, size=10, color=DARK)
 
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     #  Slide 8: STEP 4 リポジトリ作成（詳細フォーム解説）
@@ -1493,7 +1495,7 @@ def _build_setup_guide_pptx():
          "Free プランでも試用できますが、使用回数に厳しい制限があります。本格的な開発には Pro プラン（$20/月）を推奨します。Claude Code で自動生成できるコード量が大幅に増えます。",
          ANT_RUST),
         ("Q3", "Codespace を閉じてもデータは消えませんか？",
-         "ブラウザを閉じても Codespace は保持されます。GitHub の「Codespaces」ページから再開できます。ただし非アクティブ状態が 30 日続くと自動削除されます。",
+         "ブラウザを閉じても Codespace は保持されます。github.com/codespaces から再開できます。非アクティブ状態が続くと自動削除されます（デフォルト 30 日、設定で変更可）。削除前に警告メールが届きます。",
          CS_VIOLT),
         ("Q4", "GitHub・claude.ai のパスワードを忘れた場合は？",
          "GitHub：ログイン画面の「Forgot password?」からメール（Gmail）でリセットできます。claude.ai：「Forgot password?」または「Continue with GitHub」を使って再ログインできます。",
