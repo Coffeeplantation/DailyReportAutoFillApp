@@ -443,7 +443,8 @@ def download_manual():
 
 def _build_report() -> io.BytesIO:
     from datetime import date as _date
-    TODAY = _date.today().strftime("%Y年%m月%d日")
+    _d = _date.today()
+    TODAY = f"{_d.year}年{_d.month:02d}月{_d.day:02d}日"
 
     wb = openpyxl.Workbook()
 
