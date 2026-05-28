@@ -44,4 +44,5 @@ jobs:
             dist/DailyReportApp.exe
             dist_docs/manual.pptx
             dist_docs/report.pptx
+            dist_docs/setup_guide.pptx
           make_latest: true
