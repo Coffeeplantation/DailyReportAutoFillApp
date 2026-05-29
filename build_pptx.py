@@ -1004,7 +1004,7 @@ def _build_setup_guide_pptx():
     sl = _slide(prs)
     _chrome(sl, "全体の流れ", 2, TOTAL)
     _tb(sl, ML, CY + Inches(0.04), CW, Inches(0.28),
-        "5 ステップで開発環境を整えます。インストール不要で、ブラウザだけで完結します。",
+        "5 ステップで開発環境を整えます。本ガイドは Codespace（クラウド開発環境）を使った方法の一例です。インストール不要でブラウザだけで完結します。",
         size=10, color=MUTED, italic=True)
     _step_flow(sl, [
         ("STEP 1", "Google\nアカウント作成",          G_BLUE,   False),
@@ -1087,9 +1087,9 @@ def _build_setup_guide_pptx():
     for i, (icon_s, text) in enumerate([
         ("①", "GitHub にログイン後、右上のアイコン → 「Settings」を開きます。"),
         ("②", "左メニューの「Password and authentication」をクリックします。"),
-        ("③", "ページ下部「Connected accounts」（または「Social accounts」）セクションを探します。"),
-        ("④", "「Connect Google account」または「Add account」ボタンをクリックし、STEP 1 のアカウントを選択します。"),
-        ("⑤", "Google が一覧に追加されれば連携完了です。※ GitHub の UI バージョンにより表記が異なる場合があります。"),
+        ("③", "ページ下部「Social accounts」→「Link Google account」をクリック。"),
+        ("④", "Google のログイン画面が開くので、STEP 1 のアカウントを選択します。"),
+        ("⑤", "「Connected accounts」に Google が追加されれば連携完了です。"),
     ]):
         bg = ACCENT2 if i % 2 == 0 else WHITE
         rr = _rbox(sl, ML, CY + Inches(0.56) + Inches(0.65) * i, half5, Inches(0.61), bg, GRAY2)
@@ -1178,215 +1178,89 @@ def _build_setup_guide_pptx():
                 ml=Inches(0.02), mt=Inches(0.04))
         _tb(sl, ML + Inches(0.5), CY + Inches(0.9) + Inches(0.7) * i + Inches(0.12),
             CW - Inches(0.55), Inches(0.5), text, size=11, color=DARK)
-    # Pro 登録完了の確認 + 次のステップ案内
+    # Claude Code 確認
     cc_y = CY + Inches(0.9) + Inches(0.7) * 4 + Inches(0.12)
     cc_head = _rbox(sl, ML, cc_y, CW, Inches(0.44), NAVY_D)
-    _set_tf(cc_head, "Pro 登録完了の確認と次のステップ", size=13, bold=True,
+    _set_tf(cc_head, "Claude Code の利用確認（Web 版）", size=13, bold=True,
             color=WHITE, ml=Inches(0.2), mt=Inches(0.09))
-    for i, (icon_s, text, lc) in enumerate([
-        ("✅", "claude.ai のダッシュボード左下またはアカウントメニューに「Pro」バッジが表示されれば登録完了です。",
-         ANT_RUST),
-        ("\U0001f4bb", "Claude Code は CLI（ターミナル）ツールです。Web ブラウザの claude.ai から直接起動する機能はありません。",
-         MUTED),
-        ("\U000027a1", "次の STEP 4 で GitHub の Codespace（ブラウザ上のターミナル）を起動し、そこで Claude Code をインストール・使用します。",
-         NAVY),
+    for i, (icon_s, text) in enumerate([
+        ("①", "claude.ai にアクセスし、チャット画面が開いていることを確認します。"),
+        ("②", "右上のメニューから「Claude Code」または「Use Claude Code」を選択します。"),
+        ("③", "コマンド入力欄が表示されれば Pro プランで Claude Code が有効になっています。"),
     ]):
-        bg = PURPLE_L if i == 0 else (ACCENT2 if i == 2 else WHITE)
-        row = _rbox(sl, ML, cc_y + Inches(0.44) + Inches(0.6) * i, CW, Inches(0.56), bg, GRAY2)
-        _box(sl, ML, cc_y + Inches(0.44) + Inches(0.6) * i, Inches(0.06), Inches(0.56), lc)
-        _tb(sl, ML + Inches(0.2), cc_y + Inches(0.44) + Inches(0.6) * i + Inches(0.06),
-            Inches(0.3), Inches(0.38), icon_s, size=14, align=PP_ALIGN.CENTER)
-        _tb(sl, ML + Inches(0.56), cc_y + Inches(0.44) + Inches(0.6) * i + Inches(0.1),
-            CW - Inches(0.62), Inches(0.42), text, size=10, color=DARK)
+        bg = PURPLE_L if i % 2 == 0 else WHITE
+        row = _rbox(sl, ML, cc_y + Inches(0.44) + Inches(0.56) * i, CW, Inches(0.52), bg, GRAY2)
+        badge = _oval(sl, ML + Inches(0.1), cc_y + Inches(0.44) + Inches(0.56) * i + Inches(0.12),
+                      Inches(0.26), Inches(0.26), PURPLE_D)
+        _set_tf(badge, icon_s, size=7, bold=True, color=WHITE, align=PP_ALIGN.CENTER,
+                ml=Inches(0.02), mt=Inches(0.03))
+        _tb(sl, ML + Inches(0.44), cc_y + Inches(0.44) + Inches(0.56) * i + Inches(0.08),
+            CW - Inches(0.5), Inches(0.42), text, size=11, color=DARK)
 
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    #  Slide 8: STEP 4 リポジトリ作成（詳細フォーム解説）
+    #  Slide 8: STEP 4 リポジトリ作成
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     sl = _slide(prs)
     _chrome(sl, "STEP 4  GitHub リポジトリを作成する", 8, TOTAL)
     _step_hdr(sl, "4", "コードを保存・管理する「リポジトリ」を GitHub に作成します", GH_BLACK)
     _url_chip(sl, ML, CY + Inches(0.58), Inches(4.5), "https://github.com/new", GH_BLACK)
-
-    half8r = (CW - Inches(0.35)) * 0.46  # 左列幅
-    rw8    = CW - half8r - Inches(0.35)  # 右列（フォームモック）幅
-    rx8    = ML + half8r + Inches(0.35)
-
-    # 左列：手順
-    steps8 = [
-        ("①", "上記 URL を開く（または GitHub ホーム右上「＋」→「New repository」）。"),
-        ("②", "Repository name に英字でプロジェクト名を入力（例：my-first-app）。スペース不可。"),
-        ("③", "Description は空欄のままで OK です。"),
-        ("④", "公開設定は「Private」を必ず選択してください。"),
-        ("⑤", "「Add a README file」に必ずチェックを入れてください（Codespace 起動に必要）。"),
-        ("⑥", "「Add .gitignore」テンプレートから「Python」を選択します。"),
-        ("⑦", "「Create repository」をクリックして完了です。"),
-    ]
-    for i, (icon_s, text) in enumerate(steps8):
-        # ④ Private と ⑤ README は強調色
-        lc = RED if i == 3 else (GREEN_D if i == 4 else GH_BLACK)
-        bg = RED_L if i == 3 else (GREEN_L if i == 4 else (ACCENT2 if i % 2 == 0 else WHITE))
-        row = _rbox(sl, ML, CY + Inches(1.02) + Inches(0.6) * i, half8r, Inches(0.56), bg, GRAY2)
-        if i in (3, 4):
-            _box(sl, ML, CY + Inches(1.02) + Inches(0.6) * i, Inches(0.06), Inches(0.56), lc)
-        badge = _oval(sl, ML + Inches(0.12), CY + Inches(1.02) + Inches(0.6) * i + Inches(0.13),
-                      Inches(0.28), Inches(0.28), lc)
-        _set_tf(badge, icon_s, size=7, bold=True, color=WHITE, align=PP_ALIGN.CENTER,
-                ml=Inches(0.02), mt=Inches(0.04))
-        _tb(sl, ML + Inches(0.48), CY + Inches(1.02) + Inches(0.6) * i + Inches(0.08),
-            half8r - Inches(0.52), Inches(0.42), text, size=10, color=lc if i in (3, 4) else DARK)
-
-    # 右列：GitHub フォームモック
-    fy = CY + Inches(0.95)
-    fm = _rbox(sl, rx8, fy, rw8, Inches(4.6), GH_GRAY, GRAY2)
-    _rbox(sl, rx8, fy, rw8, Inches(0.36), GH_BLACK)
-    _tb(sl, rx8 + Inches(0.12), fy + Inches(0.05), rw8 - Inches(0.2), Inches(0.28),
-        "Create a new repository", size=10, bold=True, color=WHITE)
-
-    def _field(y, label, val, val_color=DARK, label_bold=False):
-        _tb(sl, rx8 + Inches(0.12), y, rw8 - Inches(0.2), Inches(0.2),
-            label, size=9, bold=label_bold, color=MUTED)
-        fbox = _rbox(sl, rx8 + Inches(0.12), y + Inches(0.2), rw8 - Inches(0.24), Inches(0.3), WHITE, GRAY2)
-        _set_tf(fbox, val, size=9, color=val_color, ml=Inches(0.1), mt=Inches(0.06))
-
-    _field(fy + Inches(0.44), "Repository name *", "my-first-app")
-
-    # Public / Private 選択
-    vis_y = fy + Inches(1.0)
-    _tb(sl, rx8 + Inches(0.12), vis_y, rw8 - Inches(0.2), Inches(0.2),
-        "Visibility  *必ずPrivateを選択してください", size=9, bold=True, color=RED)
-    # Public（非選択）
-    pb_pub = _rbox(sl, rx8 + Inches(0.12), vis_y + Inches(0.22), (rw8 - Inches(0.36)) / 2, Inches(0.44), WHITE, GRAY2)
-    _oval(sl, rx8 + Inches(0.18), vis_y + Inches(0.33), Inches(0.18), Inches(0.18), GRAY2)
-    _tb(sl, rx8 + Inches(0.42), vis_y + Inches(0.3), Inches(1.0), Inches(0.25), "Public", size=9, color=MUTED)
-    # Private（選択中・強調）
-    pb_pri_x = rx8 + Inches(0.12) + (rw8 - Inches(0.36)) / 2 + Inches(0.12)
-    pb_pri = _rbox(sl, pb_pri_x, vis_y + Inches(0.22), (rw8 - Inches(0.36)) / 2, Inches(0.44), RED_L, RED, line_w=1.5)
-    _oval(sl, pb_pri_x + Inches(0.1), vis_y + Inches(0.33), Inches(0.18), Inches(0.18), RED)
-    _tb(sl, pb_pri_x + Inches(0.34), vis_y + Inches(0.3), Inches(1.0), Inches(0.25),
-        "Private  ◀ 選択", size=9, bold=True, color=RED)
-
-    # Add README（チェック済み強調）
-    rm_y = vis_y + Inches(0.78)
-    _tb(sl, rx8 + Inches(0.12), rm_y, rw8 - Inches(0.2), Inches(0.2),
-        "Initialize this repository with:", size=9, bold=True, color=GREEN_D)
-    rm_box = _rbox(sl, rx8 + Inches(0.12), rm_y + Inches(0.22), rw8 - Inches(0.24), Inches(0.44), GREEN_L, GREEN, line_w=1.5)
-    _rbox(sl, rx8 + Inches(0.18), rm_y + Inches(0.31), Inches(0.22), Inches(0.22), GREEN)
-    _tb(sl, rx8 + Inches(0.22), rm_y + Inches(0.33), Inches(0.18), Inches(0.18), "✓", size=9, bold=True, color=WHITE)
-    _tb(sl, rx8 + Inches(0.48), rm_y + Inches(0.3), rw8 - Inches(0.6), Inches(0.25),
-        "Add a README file  ◀ 必須チェック", size=9, bold=True, color=GREEN_D)
-
-    # .gitignore
-    gi_y = rm_y + Inches(0.78)
-    _tb(sl, rx8 + Inches(0.12), gi_y, rw8 - Inches(0.2), Inches(0.2), ".gitignore template", size=9, color=MUTED)
-    gi_box = _rbox(sl, rx8 + Inches(0.12), gi_y + Inches(0.2), rw8 - Inches(0.24), Inches(0.3), WHITE, GRAY2)
-    _set_tf(gi_box, "Python", size=9, color=DARK, ml=Inches(0.1), mt=Inches(0.06))
-
-    # Create ボタン
-    btn_y = gi_y + Inches(0.65)
-    create_btn = _rbox(sl, rx8 + Inches(0.12), btn_y, rw8 - Inches(0.24), Inches(0.4), GH_BLACK)
-    _set_tf(create_btn, "Create repository", size=11, bold=True, color=WHITE,
-            align=PP_ALIGN.CENTER, ml=Inches(0.1), mt=Inches(0.1))
+    _rows(sl, [
+        ("①", "上記 URL を開きます（または GitHub ホーム右上の「＋」→「New repository」をクリック）。"),
+        ("②", "「Repository name」に英字でプロジェクト名を入力します（例：my-first-app）。スペース不可。"),
+        ("③", "説明（Description）は任意です。スキップして「Public」または「Private」を選択します。"),
+        ("④", "「Add a README file」にチェックを入れます（Codespace 起動に必要）。"),
+        ("⑤", "「Add .gitignore」→「Python」を選択します（不要ファイルを除外）。"),
+        ("⑥", "「Create repository」ボタンをクリックします。"),
+    ], CY + Inches(1.02), rh=Inches(0.65), lcolor=GH_BLACK)
+    tip8a = _rbox(sl, ML, H - FH - Inches(0.78), CW, Inches(0.25), GH_GRAY, GRAY2)
+    _set_tf(tip8a, "Private にしておけば自分だけが閲覧できます。後から Public に変更することも可能です。",
+            size=10, color=MUTED, ml=Inches(0.15), mt=Inches(0.04))
+    _warn(sl, "README ファイルがないとリポジトリが空の状態になり、Codespace を起動できません。必ずチェックを入れてください。")
 
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    #  Slide 9: STEP 4続 Codespace 起動（詳細フロー）
+    #  Slide 9: STEP 4続 Codespace 起動
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     sl = _slide(prs)
     _chrome(sl, "STEP 4  GitHub Codespace を起動する", 9, TOTAL)
-    _tb(sl, ML, CY + Inches(0.04), CW, Inches(0.28),
-        "リポジトリ作成後、ブラウザだけで動く開発環境「Codespace」をリポジトリページから起動します。",
+    _tb(sl, ML, CY + Inches(0.04), CW, Inches(0.3),
+        "本ガイドでは Codespace（ブラウザ上の VS Code 環境）を使う方法を紹介します。Codespace はあくまで一例であり、VS Code のローカルインストールなど他の方法でも問題ありません。",
         size=11, color=MUTED, italic=True)
-
-    half9 = (CW - Inches(0.35)) * 0.52  # 左列（手順）幅
-    rw9   = CW - half9 - Inches(0.35)   # 右列（UI モック）幅
-    rx9   = ML + half9 + Inches(0.35)
-
-    # 左列：手順
+    # What is Codespace
+    cs_info_y = CY + Inches(0.38)
+    ci = _rbox(sl, ML, cs_info_y, CW, Inches(0.44), CS_VIOLT)
+    _set_tf(ci, "Codespace を使うメリット", size=12, bold=True, color=WHITE, ml=Inches(0.2), mt=Inches(0.09))
+    feat_w = (CW - Inches(0.3)) / 3
     for i, (icon_s, head, body) in enumerate([
-        ("①", "リポジトリページを開く",
-         "github.com にログイン → 右上アイコン →\n「Your repositories」→ 作成したリポジトリ名をクリック。"),
-        ("②", "緑色の「<> Code」ボタンをクリック",
-         "リポジトリページ右上にある緑色のボタンです。\nクリックするとドロップダウンが開きます。"),
-        ("③", "「Codespaces」タブを選択",
-         "ドロップダウン上部の「Local」と「Codespaces」の\nタブのうち「Codespaces」をクリックします。"),
-        ("④", "「Create codespace on main」をクリック",
-         "緑色のボタンをクリックします。\n初回起動は 1〜2 分かかります。"),
-        ("⑤", "ターミナルを開く",
-         "Codespace 起動後、画面下の「Terminal」タブをクリック。\nまたは Ctrl + ` （バッククォート）キーでも開けます。"),
+        ("\U0001f4bb", "ブラウザだけで動く", "VS Code がそのままブラウザで使えます。インストール不要。"),
+        ("\U000026a1", "環境が最初から整っている", "Node.js・Python・Git がプリインストール済みです。"),
+        ("\U00002601", "クラウド保存",         "作業内容はクラウドに保存。どのPCからでもアクセス可。"),
     ]):
-        sy = CY + Inches(0.38) + Inches(1.12) * i
-        hb = _rbox(sl, ML, sy, half9, Inches(0.35), GH_BLACK if i != 4 else CS_VIOLT)
-        _set_tf(hb, f"{icon_s}  {head}", size=10, bold=True, color=WHITE, ml=Inches(0.14), mt=Inches(0.07))
-        bb = _rbox(sl, ML, sy + Inches(0.35), half9, Inches(0.74), ACCENT2 if i % 2 == 0 else GH_GRAY, GRAY2)
-        _tb(sl, ML + Inches(0.12), sy + Inches(0.43), half9 - Inches(0.16), Inches(0.58),
+        fx = ML + (feat_w + Inches(0.15)) * i
+        fb = _rbox(sl, fx, cs_info_y + Inches(0.44), feat_w, Inches(0.9), ACCENT2, GRAY2)
+        _tb(sl, fx + Inches(0.05), cs_info_y + Inches(0.5), feat_w - Inches(0.1), Inches(0.3),
+            icon_s + "  " + head, size=11, bold=True, color=CS_VIOLT)
+        _tb(sl, fx + Inches(0.1), cs_info_y + Inches(0.82), feat_w - Inches(0.15), Inches(0.5),
             body, size=10, color=DARK)
-
-    # 右列：UI モック（リポジトリページ → Code ボタン → ドロップダウン → Codespace）
-    mock_y = CY + Inches(0.35)
-    # ブラウザバー風
-    browser_bar = _rbox(sl, rx9, mock_y, rw9, Inches(0.32), GRAY2, GRAY2)
-    _tb(sl, rx9 + Inches(0.1), mock_y + Inches(0.05), rw9 - Inches(0.15), Inches(0.22),
-        "https://github.com/yourname/my-first-app", size=8, color=MUTED)
-
-    # リポジトリヘッダー
-    repo_hdr = _rbox(sl, rx9, mock_y + Inches(0.32), rw9, Inches(0.42), GH_GRAY, GRAY2)
-    _tb(sl, rx9 + Inches(0.12), mock_y + Inches(0.4), rw9 * 0.55, Inches(0.25),
-        "yourname / my-first-app", size=10, bold=True, color=GH_BLACK)
-    # Code ボタン（強調）
-    code_btn_x = rx9 + rw9 - Inches(1.3)
-    code_btn = _rbox(sl, code_btn_x, mock_y + Inches(0.38), Inches(1.15), Inches(0.32), GREEN)
-    _set_tf(code_btn, "< > Code  ▼", size=9, bold=True, color=WHITE,
-            align=PP_ALIGN.CENTER, ml=Inches(0.05), mt=Inches(0.05))
-    # 矢印
-    _tb(sl, code_btn_x + Inches(0.48), mock_y + Inches(0.72), Inches(0.22), Inches(0.25),
-        "▼", size=10, color=GREEN_D, align=PP_ALIGN.CENTER)
-
-    # ドロップダウンモック
-    dd_y = mock_y + Inches(0.96)
-    dd_x = rx9 + rw9 - Inches(2.55)
-    dd = _rbox(sl, dd_x, dd_y, Inches(2.42), Inches(2.35), WHITE, GRAY2)
-    # タブ
-    tab_w = Inches(2.42) / 2
-    tab_local = _rbox(sl, dd_x, dd_y, tab_w, Inches(0.35), GH_GRAY, GRAY2)
-    _set_tf(tab_local, "Local", size=9, color=MUTED, align=PP_ALIGN.CENTER, ml=Inches(0.05), mt=Inches(0.07))
-    tab_cs = _rbox(sl, dd_x + tab_w, dd_y, tab_w, Inches(0.35), WHITE, CS_VIOLT, line_w=1.5)
-    _set_tf(tab_cs, "Codespaces  ◀", size=9, bold=True, color=CS_VIOLT,
-            align=PP_ALIGN.CENTER, ml=Inches(0.05), mt=Inches(0.07))
-    _box(sl, dd_x + tab_w, dd_y + Inches(0.32), tab_w, Inches(0.03), CS_VIOLT)
-
-    # Codespace コンテンツ
-    cs_inner_y = dd_y + Inches(0.42)
-    _tb(sl, dd_x + Inches(0.1), cs_inner_y, Inches(2.2), Inches(0.22),
-        "Codespaces in this repository", size=8, color=MUTED)
-    # Create ボタン（強調）
-    create_cs_y = cs_inner_y + Inches(0.28)
-    cc_btn = _rbox(sl, dd_x + Inches(0.1), create_cs_y, Inches(2.22), Inches(0.4), GREEN)
-    _set_tf(cc_btn, "+ Create codespace on main", size=9, bold=True, color=WHITE,
-            align=PP_ALIGN.CENTER, ml=Inches(0.05), mt=Inches(0.1))
-    tip_cs = _rbox(sl, dd_x + Inches(0.1), create_cs_y + Inches(0.46),
-                   Inches(2.22), Inches(0.52), ACCENT2, GRAY2)
-    _set_tf(tip_cs, "クリックすると\nブラウザ内で VS Code が起動します\n（初回 1〜2 分）",
-            size=8, color=DARK, ml=Inches(0.08), mt=Inches(0.06))
-
-    # Codespace 起動後のイメージ
-    cs_launched_y = dd_y + Inches(2.42)
-    cl = _rbox(sl, rx9, cs_launched_y, rw9, Inches(2.5), CODE_BG, CS_VIOLT, line_w=1.5)
-    _tb(sl, rx9 + Inches(0.12), cs_launched_y + Inches(0.1), rw9 - Inches(0.2), Inches(0.28),
-        "Codespace 起動後の画面（イメージ）", size=9, bold=True, color=CS_VIOLT)
-    _rbox(sl, rx9 + Inches(0.12), cs_launched_y + Inches(0.42), rw9 - Inches(0.24), Inches(0.44),
-          RGBColor(0x1C, 0x2B, 0x3B), CODE_BG)
-    _tb(sl, rx9 + Inches(0.18), cs_launched_y + Inches(0.5), rw9 - Inches(0.3), Inches(0.28),
-        "EXPLORER  /  my-first-app", size=8, color=MUTED_L)
-    term_y = cs_launched_y + Inches(0.95)
-    _rbox(sl, rx9 + Inches(0.12), term_y, rw9 - Inches(0.24), Inches(1.45), CODE_BG)
-    _tb(sl, rx9 + Inches(0.18), term_y + Inches(0.06), rw9 - Inches(0.3), Inches(0.25),
-        "TERMINAL", size=8, bold=True, color=CS_VIOLT)
-    for j, ln in enumerate([
-        "@yourname  /workspaces/my-first-app (main) $",
-        "▌",
+    # 起動手順
+    launch_y = cs_info_y + Inches(1.42)
+    lh = _rbox(sl, ML, launch_y, CW, Inches(0.44), GH_BLACK)
+    _set_tf(lh, "Codespace の起動手順", size=12, bold=True, color=WHITE, ml=Inches(0.2), mt=Inches(0.09))
+    for i, (icon_s, text) in enumerate([
+        ("①", "作成したリポジトリのページを開きます（github.com → Your repositories → リポジトリ名）。"),
+        ("②", "緑色の「<> Code」ボタンをクリックし、「Codespaces」タブを選択します。"),
+        ("③", "「Create codespace on main」をクリックします。"),
+        ("④", "ブラウザ内に VS Code が起動します（初回は 1〜2 分かかります）。"),
+        ("⑤", "画面下部の「Terminal」タブをクリックしてターミナルを開きます。表示されない場合は メニュー「Terminal」→「New Terminal」。"),
     ]):
-        _tb(sl, rx9 + Inches(0.18), term_y + Inches(0.32) + Inches(0.28) * j,
-            rw9 - Inches(0.3), Inches(0.25), ln, size=9, color=CODE_FG)
-    _tip(sl, "無料プランは月 120 時間・15 GB まで無料です。ブラウザを閉じても 30 日間は Codespace が保持されます。")
+        bg = ACCENT2 if i % 2 == 0 else WHITE
+        rr = _rbox(sl, ML, launch_y + Inches(0.44) + Inches(0.62) * i, CW, Inches(0.58), bg, GRAY2)
+        badge = _oval(sl, ML + Inches(0.1), launch_y + Inches(0.44) + Inches(0.62) * i + Inches(0.14),
+                      Inches(0.28), Inches(0.28), GH_BLACK)
+        _set_tf(badge, icon_s, size=7, bold=True, color=WHITE, align=PP_ALIGN.CENTER,
+                ml=Inches(0.02), mt=Inches(0.04))
+        _tb(sl, ML + Inches(0.46), launch_y + Inches(0.44) + Inches(0.62) * i + Inches(0.08),
+            CW - Inches(0.5), Inches(0.46), text, size=10, color=DARK)
+    _tip(sl, "無料プランでは月 120 時間・ストレージ 15 GB が使用できます。Pro プランは月 180 時間まで無料。")
 
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     #  Slide 10: STEP 4続 Claude Code インストール & 認証
@@ -1495,7 +1369,7 @@ def _build_setup_guide_pptx():
          "Free プランでも試用できますが、使用回数に厳しい制限があります。本格的な開発には Pro プラン（$20/月）を推奨します。Claude Code で自動生成できるコード量が大幅に増えます。",
          ANT_RUST),
         ("Q3", "Codespace を閉じてもデータは消えませんか？",
-         "ブラウザを閉じても Codespace は保持されます。github.com/codespaces から再開できます。非アクティブ状態が続くと自動削除されます（デフォルト 30 日、設定で変更可）。削除前に警告メールが届きます。",
+         "ブラウザを閉じても Codespace は保持されます。GitHub の「Codespaces」ページから再開できます。ただし非アクティブ状態が 30 日続くと自動削除されます。",
          CS_VIOLT),
         ("Q4", "GitHub・claude.ai のパスワードを忘れた場合は？",
          "GitHub：ログイン画面の「Forgot password?」からメール（Gmail）でリセットできます。claude.ai：「Forgot password?」または「Continue with GitHub」を使って再ログインできます。",
