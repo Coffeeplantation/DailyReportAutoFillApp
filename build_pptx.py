@@ -1047,14 +1047,16 @@ def _build_setup_guide_pptx():
     _url_chip(sl, ML, CY + Inches(0.58), Inches(5.5), "https://accounts.google.com/signup", G_BLUE)
     _rows(sl, [
         ("①", "上記 URL をブラウザで開き、「アカウントを作成」→「個人用」をクリックします。"),
-        ("②", "姓・名（ニックネームでも可）を入力して「次へ」を押します。"),
-        ("③", "生年月日と性別を入力して「次へ」を押します。"),
-        ("④", "ユーザー名（例：yamada.taro2024）を入力します。これが Gmail アドレスの @ 前になります。"),
-        ("⑤", "パスワードを設定します（8文字以上・英字大小・数字・記号を混ぜると安全）。"),
-        ("⑥", "電話番号を入力し、SMS で届いた確認コード（6桁）を入力します。"),
-        ("⑦", "利用規約を確認して「同意する」をクリック → 作成完了です。"),
-    ], CY + Inches(1.02), rh=Inches(0.625), lcolor=G_BLUE)
-    _tip(sl, "すでに Google アカウントをお持ちの場合は STEP 2 へ進んでください。")
+        ("②", "姓・名・生年月日・性別を順番に入力して「次へ」を押していきます。"),
+        ("③", "ユーザー名を決めて入力します（例：yamada.taro2024）。これが Gmail アドレス（@gmail.com）になります。"),
+        ("④", "パスワードを設定 → 電話番号で SMS 認証 → 利用規約に同意 → 作成完了です。"),
+    ], CY + Inches(1.02), rh=Inches(0.75), lcolor=G_BLUE)
+    note3_y = CY + Inches(1.02) + Inches(0.75) * 4 + Inches(0.2)
+    nb3 = _rbox(sl, ML, note3_y, CW, Inches(0.72), ACCENT2, G_BLUE, line_w=1.0)
+    _set_tf(nb3, [
+        "💡  この Gmail アドレスは STEP 2（GitHub）・STEP 3（Claude Code）の登録でも使います。必ずメモしておきましょう。",
+        "すでに Google アカウントをお持ちの方は、そのまま STEP 2 へ進んでください。",
+    ], size=11, color=NAVY_D, ml=Inches(0.22), mt=Inches(0.12))
 
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     #  Slide 4: STEP 2 GitHub アカウント登録
@@ -1080,26 +1082,29 @@ def _build_setup_guide_pptx():
     sl = _slide(prs)
     _chrome(sl, "STEP 2  GitHub 初期設定：Google アカウント連携と 2FA", 5, TOTAL)
     half5 = (CW - Inches(0.3)) / 2
-    # 左：Google 連携
+    # 左：Google 連携（簡略・任意）
     gl = _rbox(sl, ML, CY + Inches(0.05), half5, Inches(0.44), G_BLUE)
-    _set_tf(gl, "Google アカウントの連携（ソーシャルログイン）", size=11, bold=True,
+    _set_tf(gl, "Google アカウントの連携（任意・スキップ可）", size=11, bold=True,
             color=WHITE, ml=Inches(0.15), mt=Inches(0.1))
     for i, (icon_s, text) in enumerate([
-        ("①", "GitHub にログイン後、右上のアイコン → 「Settings」を開きます。"),
-        ("②", "左メニューの「Password and authentication」をクリックします。"),
-        ("③", "ページ下部「Social accounts」→「Link Google account」をクリック。"),
-        ("④", "Google のログイン画面が開くので、STEP 1 のアカウントを選択します。"),
-        ("⑤", "「Connected accounts」に Google が追加されれば連携完了です。"),
+        ("①", "右上アイコン → Settings → Password and authentication を開きます。"),
+        ("②", "「Social accounts」→「Link Google account」をクリックします。"),
+        ("③", "STEP 1 の Google アカウントを選択すれば連携完了です。"),
     ]):
         bg = ACCENT2 if i % 2 == 0 else WHITE
-        rr = _rbox(sl, ML, CY + Inches(0.56) + Inches(0.65) * i, half5, Inches(0.61), bg, GRAY2)
-        badge = _oval(sl, ML + Inches(0.1), CY + Inches(0.56) + Inches(0.65) * i + Inches(0.15),
+        rr = _rbox(sl, ML, CY + Inches(0.56) + Inches(0.78) * i, half5, Inches(0.74), bg, GRAY2)
+        badge = _oval(sl, ML + Inches(0.1), CY + Inches(0.56) + Inches(0.78) * i + Inches(0.22),
                       Inches(0.28), Inches(0.28), G_BLUE)
         _set_tf(badge, icon_s, size=7, bold=True, color=WHITE, align=PP_ALIGN.CENTER,
                 ml=Inches(0.02), mt=Inches(0.04))
-        _tb(sl, ML + Inches(0.46), CY + Inches(0.56) + Inches(0.65) * i + Inches(0.1),
-            half5 - Inches(0.5), Inches(0.48), text, size=10, color=DARK)
-    _tip(sl, "Google 連携すると「次回から Google でログイン」が使えて便利です。")
+        _tb(sl, ML + Inches(0.46), CY + Inches(0.56) + Inches(0.78) * i + Inches(0.16),
+            half5 - Inches(0.5), Inches(0.52), text, size=10, color=DARK)
+    opt_y = CY + Inches(0.56) + Inches(0.78) * 3 + Inches(0.1)
+    opt = _rbox(sl, ML, opt_y, half5, Inches(0.65), ORANGE_L, ORANGE, line_w=0.8)
+    _set_tf(opt, ["⚠  この設定は任意です",
+                  "スキップしても GitHub・Claude Code の利用に支障はありません。後からいつでも設定できます。"],
+            size=9, color=ORANGE_D, ml=Inches(0.15), mt=Inches(0.08))
+    _tip(sl, "Google 連携すると「次回から Google でログイン」が使えて便利です（任意）。")
     # 右：2FA
     rx5 = ML + half5 + Inches(0.3)
     gr = _rbox(sl, rx5, CY + Inches(0.05), half5, Inches(0.44), GH_BLACK)
@@ -1293,24 +1298,26 @@ def _build_setup_guide_pptx():
         _code_block(sl, ML, hy + Inches(0.35), half10, Inches(0.6), cmd)
         nb = _rbox(sl, ML, hy + Inches(0.95), half10, Inches(0.38), ACCENT2, GRAY2)
         _set_tf(nb, note, size=9, color=DARK, ml=Inches(0.12), mt=Inches(0.07))
-    # 右列：認証フロー説明
+    # 右列：認証フロー説明（詳細）
     rx10 = ML + half10 + Inches(0.3)
     ah = _rbox(sl, rx10, cmd_y, half10, Inches(0.44), ANT_RUST)
-    _set_tf(ah, "初回認証の流れ", size=12, bold=True, color=WHITE, ml=Inches(0.18), mt=Inches(0.09))
+    _set_tf(ah, "初回認証の流れ（詳細）", size=12, bold=True, color=WHITE, ml=Inches(0.18), mt=Inches(0.09))
     for i, (icon_s, text) in enumerate([
         ("\U0001f4bb", "ターミナルで「claude」と入力して Enter を押します。"),
-        ("\U0001f517", "「Please open the following URL...」というメッセージとURLが表示されます。"),
-        ("\U0001f310", "そのURLをクリック（または Ctrl クリック）でブラウザが開きます。"),
-        ("\U0001f511", "claude.ai の Pro アカウントでログインし「Authorize」をクリックします。"),
-        ("✅",     "ターミナルに「Authenticated successfully」と表示されれば認証完了です。"),
-        ("\U0001f4ac", "チャットが開始します。日本語でメッセージを入力してみましょう！"),
+        ("\U0001f517", "「Please open the following URL in your browser:」に続き、長い URL が表示されます。"),
+        ("\U0001f5b1", "Ctrl キーを押しながら URL をクリック（またはURLをコピーしてブラウザのアドレスバーに貼り付け）します。"),
+        ("\U0001f511", "ブラウザに claude.ai のログイン画面が表示されます。Pro アカウントでログインします。"),
+        ("🔐",     "「Claude Code wants to access your account」という画面で「Authorize」をクリックします。"),
+        ("✅",     "「Authentication successful! You may close this tab.」と表示されたらタブを閉じます。"),
+        ("\U0001f4ac", "ターミナルに「✓ Logged in as 〇〇」と表示されます。"),
+        ("▶",      "「>」プロンプトが出たら準備完了！そのまま日本語で指示を入力してください。"),
     ]):
         bg = ACCENT2 if i % 2 == 0 else WHITE
-        ar = _rbox(sl, rx10, cmd_y + Inches(0.44) + Inches(0.58) * i, half10, Inches(0.54), bg, GRAY2)
-        _tb(sl, rx10 + Inches(0.1), cmd_y + Inches(0.44) + Inches(0.58) * i + Inches(0.06),
-            Inches(0.3), Inches(0.38), icon_s, size=14, align=PP_ALIGN.CENTER)
-        _tb(sl, rx10 + Inches(0.48), cmd_y + Inches(0.44) + Inches(0.58) * i + Inches(0.1),
-            half10 - Inches(0.52), Inches(0.38), text, size=10, color=DARK)
+        ar = _rbox(sl, rx10, cmd_y + Inches(0.44) + Inches(0.47) * i, half10, Inches(0.43), bg, GRAY2)
+        _tb(sl, rx10 + Inches(0.1), cmd_y + Inches(0.44) + Inches(0.47) * i + Inches(0.04),
+            Inches(0.3), Inches(0.32), icon_s, size=13, align=PP_ALIGN.CENTER)
+        _tb(sl, rx10 + Inches(0.46), cmd_y + Inches(0.44) + Inches(0.47) * i + Inches(0.06),
+            half10 - Inches(0.5), Inches(0.34), text, size=9, color=DARK)
 
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     #  Slide 11: STEP 5 開発開始とコード保存

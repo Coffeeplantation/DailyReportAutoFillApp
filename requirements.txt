@@ -3,3 +3,4 @@ openpyxl
 jpholiday
 flask-httpauth
 python-dotenv
+google-genai

@@ -694,6 +694,73 @@ def download_report():
     )
 
 
+@app.route('/api/chat', methods=['POST'])
+@auth.login_required
+def ai_chat():
+    api_key = os.getenv('GEMINI_API_KEY')
+    if not api_key:
+        return jsonify({'error': 'GEMINI_API_KEY が設定されていません。.env ファイルに追加してください。'}), 500
+
+    data = request.get_json(silent=True) or {}
+    message = (data.get('message') or '').strip()
+    if not message:
+        return jsonify({'error': 'メッセージを入力してください'}), 400
+
+    current_times = data.get('current_times', {})
+    day_map = {
+        'monday': '月曜', 'tuesday': '火曜', 'wednesday': '水曜',
+        'thursday': '木曜', 'friday': '金曜',
+    }
+    settings_lines = '\n'.join(
+        f"{day_map[d]}: 開始={t.get('start','--')}, 終了={t.get('end','--')}, 休憩={t.get('break','--')}"
+        for d, t in current_times.items() if t
+    ) or '（未設定）'
+
+    prompt = f"""あなたは勤務時間管理アシスタントです。
+ユーザーの指示に従い、曜日別勤務時間の変更内容をJSON形式で返してください。
+
+## 現在の設定
+{settings_lines}
+
+## ユーザーの指示
+{message}
+
+## 返却形式（必ずこのJSONのみ返す）
+{{
+  "changes": {{
+    "monday":    {{"start": "HH:MM", "end": "HH:MM", "break": "HH:MM"}} または null,
+    "tuesday":   null,
+    "wednesday": null,
+    "thursday":  null,
+    "friday":    null
+  }},
+  "reply": "変更内容を日本語で1文"
+}}
+
+ルール:
+- 変更しない曜日は null を返す
+- 時刻は24時間HH:MM形式（例: "09:00", "18:30"）
+- 「先月と同じ」「変更なし」はすべて null、reply で現在の設定を確認
+- 休憩時間が未指定なら現在の値か "01:00" を維持
+- 「全部○○にして」なら全曜日を変更"""
+
+    try:
+        from google import genai
+        import json as _json
+        client = genai.Client(api_key=api_key)
+        response = client.models.generate_content(
+            model='gemini-2.0-flash',
+            contents=prompt,
+            config=genai.types.GenerateContentConfig(
+                response_mime_type='application/json'
+            ),
+        )
+        result = _json.loads(response.text)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': f'AI エラー: {str(e)}'}), 500
+
+
 @app.route('/api/exe')
 @auth.login_required
 def download_exe():

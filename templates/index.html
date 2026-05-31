@@ -885,6 +885,85 @@
       margin-top: 16px;
       font-size: 0.9rem;
     }
+
+    /* AI チャット */
+    .ai-card {
+      background: linear-gradient(135deg, #f5f3ff 0%, #eff6ff 100%);
+      border: 1px solid #ddd6fe;
+      border-radius: 12px;
+      padding: 14px 18px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(109,40,217,0.06);
+    }
+    .ai-card-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .ai-card-header .ai-title {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: #6d28d9;
+    }
+    .ai-card-header .ai-hint {
+      font-size: 0.76rem;
+      color: #9ca3af;
+    }
+    .ai-input-row {
+      display: flex;
+      gap: 8px;
+    }
+    .ai-input-row input {
+      flex: 1;
+      border: 1.5px solid #c4b5fd;
+      border-radius: 8px;
+      padding: 9px 12px;
+      font-size: 0.9rem;
+      outline: none;
+      background: #fff;
+      transition: border-color 0.2s;
+    }
+    .ai-input-row input:focus {
+      border-color: #7c3aed;
+      box-shadow: 0 0 0 3px rgba(124,58,237,0.1);
+    }
+    .ai-send-btn {
+      background: #7c3aed;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 9px 18px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.2s;
+    }
+    .ai-send-btn:hover:not(:disabled) { background: #6d28d9; }
+    .ai-send-btn:disabled { background: #a78bfa; cursor: not-allowed; }
+    .ai-reply {
+      display: none;
+      margin-top: 10px;
+      padding: 9px 14px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+    }
+    .ai-reply.success {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      color: #166534;
+    }
+    .ai-reply.error {
+      background: #fee2e2;
+      border: 1px solid #fca5a5;
+      color: #b91c1c;
+    }
+    .ai-reply.loading {
+      background: #f5f3ff;
+      border: 1px solid #ddd6fe;
+      color: #6d28d9;
+    }
   </style>
 </head>
 <body>
@@ -905,6 +984,21 @@
   </header>
 
   <form id="mainForm">
+
+    <!-- AI アシスタント -->
+    <div class="ai-card">
+      <div class="ai-card-header">
+        <span>🤖</span>
+        <span class="ai-title">AI アシスタント</span>
+        <span class="ai-hint">日本語で指示するだけで曜日別の時間を変更できます</span>
+      </div>
+      <div class="ai-input-row">
+        <input type="text" id="aiInput"
+               placeholder="例：月曜だけ18:30終わりに変えて　／　全部9:00〜18:00にして">
+        <button type="button" class="ai-send-btn" id="aiSendBtn" onclick="sendAiMessage()">送信</button>
+      </div>
+      <div class="ai-reply" id="aiReply"></div>
+    </div>
 
     <!-- ① 曜日別勤務時間 -->
     <div class="card">
@@ -1055,6 +1149,77 @@
 <script>
   function getYear()  { return parseInt(document.getElementById('yearInput').value)  || {{ current_year }}; }
   function getMonth() { return parseInt(document.getElementById('monthInput').value) || {{ current_month }}; }
+
+  // ── AI アシスタント ──────────────────────────────────────
+  async function sendAiMessage() {
+    const input   = document.getElementById('aiInput');
+    const sendBtn = document.getElementById('aiSendBtn');
+    const replyEl = document.getElementById('aiReply');
+    const message = input.value.trim();
+    if (!message) { input.focus(); return; }
+
+    sendBtn.textContent = '処理中…';
+    sendBtn.disabled = true;
+    replyEl.className = 'ai-reply loading';
+    replyEl.textContent = '🤖 考え中…';
+    replyEl.style.display = 'block';
+
+    const current_times = {};
+    ['monday','tuesday','wednesday','thursday','friday'].forEach(day => {
+      const s = document.querySelector(`[name="${day}_start"]`)?.value;
+      const e = document.querySelector(`[name="${day}_end"]`)?.value;
+      const b = document.querySelector(`[name="${day}_break"]`)?.value;
+      if (s && e) current_times[day] = { start: s, end: e, 'break': b || '01:00' };
+    });
+
+    try {
+      const res  = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message, current_times }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        replyEl.className = 'ai-reply error';
+        replyEl.textContent = '⚠ ' + (data.error || 'エラーが発生しました');
+        return;
+      }
+
+      let changed = false;
+      if (data.changes) {
+        Object.entries(data.changes).forEach(([day, times]) => {
+          if (!times) return;
+          const sEl = document.querySelector(`[name="${day}_start"]`);
+          const eEl = document.querySelector(`[name="${day}_end"]`);
+          const bEl = document.querySelector(`[name="${day}_break"]`);
+          if (times.start && sEl) { sEl.value = times.start; changed = true; }
+          if (times.end   && eEl) { eEl.value = times.end;   changed = true; }
+          if (times.break && bEl) { bEl.value = times.break; changed = true; }
+        });
+      }
+      if (changed) { refreshSummary(); saveSettings(); }
+
+      replyEl.className = 'ai-reply success';
+      replyEl.textContent = '✅ ' + (data.reply || '完了しました');
+      input.value = '';
+
+    } catch (err) {
+      replyEl.className = 'ai-reply error';
+      replyEl.textContent = '⚠ 通信エラー: ' + err.message;
+    } finally {
+      sendBtn.textContent = '送信';
+      sendBtn.disabled = false;
+    }
+  }
+
+  // Enter キーで送信
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('aiInput')?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') sendAiMessage();
+    });
+  });
+  // ────────────────────────────────────────────────────────
 
   const selectedDays = new Set();
   let holidays = {};
