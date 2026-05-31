@@ -174,7 +174,7 @@ def _step_flow(slide, steps, x, y, w, h):
 # ════════════════════════════════════════════════════
 def _build_manual_pptx() -> io.BytesIO:
     prs = _prs()
-    TOTAL = 10
+    TOTAL = 11
 
     # ── Slide 1 : タイトル ─────────────────────────────────
     sl = _slide(prs)
@@ -207,36 +207,44 @@ def _build_manual_pptx() -> io.BytesIO:
     # フッター
     _box(sl, 0, H - Inches(0.32), W, Inches(0.32), NAVY_D)
     _tb(sl, W - Inches(1.5), H - Inches(0.28), Inches(1.3), Inches(0.25),
-        "1  /  10", size=9, color=MUTED_L, align=PP_ALIGN.RIGHT)
+        "1  /  11", size=9, color=MUTED_L, align=PP_ALIGN.RIGHT)
 
     # ── Slide 2 : このアプリについて ───────────────────────
     sl = _slide(prs)
     _chrome(sl, "このアプリについて", 2, TOTAL)
     cy = CY + Inches(0.05)
-    fw = (CW - Inches(0.3)) / 4
+    fw = (CW - Inches(0.4)) / 5
 
     features = [
         (NAVY,   "📅", "月初 5分以内",    "で操作を完了できます",         ACCENT2),
         (GREEN,  "📊", "1ヶ月分すべて",   "のExcel行を自動で埋めます",     GREEN_L),
         (TEAL,   "🗓", "土日・祝日・有給", "を自動で判定・記入します",      TEAL_L),
         (PURPLE, "💾", "設定は自動保存",   "翌月は変更箇所のみ修正OK",      PURPLE_L),
+        (ORANGE, "🤖", "AI アシスタント", "日本語指示で全自動設定",        ORANGE_L),
     ]
     for i, (color, icon, kw, rest, bg) in enumerate(features):
         fx = ML + (fw + Inches(0.1)) * i
         # アイコン円
-        _oval(sl, fx + fw / 2 - Inches(0.38), cy, Inches(0.75), Inches(0.75), color)
-        _tb(sl, fx + fw / 2 - Inches(0.38), cy, Inches(0.75), Inches(0.75),
-            icon, size=16, align=PP_ALIGN.CENTER)
+        _oval(sl, fx + fw / 2 - Inches(0.33), cy, Inches(0.65), Inches(0.65), color)
+        _tb(sl, fx + fw / 2 - Inches(0.33), cy, Inches(0.65), Inches(0.65),
+            icon, size=14, align=PP_ALIGN.CENTER)
         # カード
-        card = _rbox(sl, fx, cy + Inches(0.82), fw, Inches(1.35), bg, GRAY2)
-        _set_tf(card, [kw, rest], size=11, color=DARK,
-                align=PP_ALIGN.CENTER, ml=Inches(0.08), mt=Inches(0.15))
+        card = _rbox(sl, fx, cy + Inches(0.72), fw, Inches(1.25), bg, GRAY2)
+        _set_tf(card, [kw, rest], size=10, color=DARK,
+                align=PP_ALIGN.CENTER, ml=Inches(0.06), mt=Inches(0.12))
         card.text_frame.paragraphs[0].runs[0].font.bold  = True
         card.text_frame.paragraphs[0].runs[0].font.color.rgb = color
-        card.text_frame.paragraphs[0].runs[0].font.size  = Pt(13)
+        card.text_frame.paragraphs[0].runs[0].font.size  = Pt(11)
+
+    # AI アシスタント バナー
+    ai_ban_y = cy + Inches(2.05)
+    ai_ban = _rbox(sl, ML, ai_ban_y, CW, Inches(0.4), PURPLE_L, PURPLE, line_w=1.0)
+    _set_tf(ai_ban,
+            "🤖  NEW  AI アシスタント搭載：日本語で指示するだけで、すべての設定をAIが自動で入力します",
+            size=11, bold=True, color=PURPLE_D, ml=Inches(0.2), mt=Inches(0.1))
 
     # 事前確認セクション
-    req_y = cy + Inches(2.35)
+    req_y = cy + Inches(2.58)
     _section_badge(sl, ML, req_y, CW, Inches(0.38), "必要なもの（事前確認）", GREEN_D)
     checks = [
         ("✔", "ブラウザ（Chrome / Edge / Safari）",   "インストール不要"),
@@ -300,9 +308,64 @@ def _build_manual_pptx() -> io.BytesIO:
     _set_tf(note, "設定はすべてブラウザに自動保存されます。翌月からは変更のある箇所だけ直せばOKです。",
             size=10, color=NAVY, ml=Inches(0.25), mt=Inches(0.12), align=PP_ALIGN.CENTER)
 
-    # ── Slide 4 : STEP 1 ────────────────────────────────
+    # ── Slide 4 : AI アシスタント ────────────────────────────
     sl = _slide(prs)
-    _chrome(sl, "STEP 1　アクセス・ログイン", 4, TOTAL)
+    _chrome(sl, "AI アシスタントの使い方", 4, TOTAL)
+    _tb(sl, ML, CY + Inches(0.05), CW, Inches(0.28),
+        "日本語で指示するだけで、曜日別時間・有給・例外日・対象月をすべてAIが自動で設定します",
+        size=10, color=MUTED, italic=True)
+
+    # 入力UI模式図
+    ui_y = CY + Inches(0.42)
+    ui_bg = _rbox(sl, ML, ui_y, CW, Inches(0.62), PURPLE_L, PURPLE, line_w=1.5)
+    _set_tf(ui_bg, "🤖  AI アシスタント",
+            size=10, bold=True, color=PURPLE_D, ml=Inches(0.2), mt=Inches(0.08))
+    inp = _rbox(sl, ML + Inches(0.15), ui_y + Inches(0.28),
+                CW - Inches(1.5), Inches(0.26), WHITE, GRAY2)
+    _set_tf(inp, "例：全部9:00〜18:00にして",
+            size=9, color=MUTED_L, ml=Inches(0.12), mt=Inches(0.04))
+    sbtn = _rbox(sl, ML + CW - Inches(1.25), ui_y + Inches(0.28),
+                 Inches(1.1), Inches(0.26), PURPLE)
+    _set_tf(sbtn, "送信", size=10, bold=True, color=WHITE,
+            align=PP_ALIGN.CENTER, ml=Inches(0.05), mt=Inches(0.04))
+
+    # 指示例
+    ex_y = ui_y + Inches(0.72)
+    ex_head = _rbox(sl, ML, ex_y, CW, Inches(0.38), PURPLE_D)
+    _set_tf(ex_head, "こんな指示ができます（入力例）",
+            size=12, bold=True, color=WHITE, ml=Inches(0.2), mt=Inches(0.09))
+    ex_items = [
+        ("全部9:00〜18:00にして",          "月〜金すべての時間を一括変更"),
+        ("月曜だけ19:00終わりにして",       "特定曜日のみ個別変更"),
+        ("今月は15日と20日に有給を取る",    "有給取得日を自動でカレンダー選択"),
+        ("20日は残業で21:00まで",          "例外日（残業・早退）を自動追加"),
+        ("7月を9時〜17時半で入力して",      "対象月の変更と時間設定を同時に"),
+        ("先月と同じ設定で入力して",        "現在の設定を確認・そのまま適用"),
+    ]
+    half_ex = (CW - Inches(0.2)) / 2
+    for i, (inst, desc) in enumerate(ex_items):
+        col = i % 2; row = i // 2
+        ex = ML + col * (half_ex + Inches(0.2))
+        ey = ex_y + Inches(0.38) + Inches(0.66) * row
+        bg_ex = PURPLE_L if row % 2 == 0 else WHITE
+        rbox = _rbox(sl, ex, ey, half_ex, Inches(0.62), bg_ex, GRAY2)
+        _box(sl, ex, ey, Inches(0.05), Inches(0.62), PURPLE)
+        _tb(sl, ex + Inches(0.12), ey + Inches(0.05),
+            half_ex - Inches(0.15), Inches(0.28),
+            f"「{inst}」", size=10, bold=True, color=PURPLE_D)
+        _tb(sl, ex + Inches(0.12), ey + Inches(0.33),
+            half_ex - Inches(0.15), Inches(0.26),
+            desc, size=9, color=MUTED)
+
+    warn_y = ex_y + Inches(0.38) + Inches(0.66) * 3 + Inches(0.1)
+    warn_ai = _rbox(sl, ML, warn_y, CW, Inches(0.42), ORANGE_L, ORANGE, line_w=0.8)
+    _set_tf(warn_ai,
+            "⚠  利用には GEMINI_API_KEY の設定が必要です（.env ファイルに追加）。未設定でもアプリ本体は通常通り使用できます。",
+            size=10, color=ORANGE_D, ml=Inches(0.2), mt=Inches(0.1))
+
+    # ── Slide 5 : STEP 1 ────────────────────────────────
+    sl = _slide(prs)
+    _chrome(sl, "STEP 1　アクセス・ログイン", 5, TOTAL)
     _num_badge(sl, ML, CY + Inches(0.05), Inches(0.58), "1", NAVY)
     _tb(sl, ML + Inches(0.68), CY + Inches(0.1), CW - Inches(0.68), Inches(0.4),
         "ブラウザでアプリのURLを開き、ログインします",
@@ -329,7 +392,7 @@ def _build_manual_pptx() -> io.BytesIO:
 
     # ── Slide 5 : STEP 2〜3 ─────────────────────────────
     sl = _slide(prs)
-    _chrome(sl, "STEP 2〜3　対象月の確認・勤務時間の設定", 5, TOTAL)
+    _chrome(sl, "STEP 2〜3　対象月の確認・勤務時間の設定", 6, TOTAL)
     half = (CW - Inches(0.3)) / 2
     for col, (num_s, head_text, head_color, items, item_bg) in enumerate([
         ("2", "対象月を確認する", GREEN_D,
@@ -361,7 +424,7 @@ def _build_manual_pptx() -> io.BytesIO:
 
     # ── Slide 6 : STEP 4 ─────────────────────────────────
     sl = _slide(prs)
-    _chrome(sl, "STEP 4　例外日を設定する（任意）", 6, TOTAL)
+    _chrome(sl, "STEP 4　例外日を設定する（任意）", 7, TOTAL)
     _num_badge(sl, ML, CY + Inches(0.05), Inches(0.58), "4", PURPLE)
     _tb(sl, ML + Inches(0.68), CY + Inches(0.1), CW - Inches(0.68), Inches(0.38),
         "残業・早退・休日出勤など、通常と異なる日を個別設定します",
@@ -389,7 +452,7 @@ def _build_manual_pptx() -> io.BytesIO:
 
     # ── Slide 7 : STEP 5 ─────────────────────────────────
     sl = _slide(prs)
-    _chrome(sl, "STEP 5　有給取得日を選択する（任意）", 7, TOTAL)
+    _chrome(sl, "STEP 5　有給取得日を選択する（任意）", 8, TOTAL)
     _num_badge(sl, ML, CY + Inches(0.05), Inches(0.58), "5", PINK)
     _tb(sl, ML + Inches(0.68), CY + Inches(0.1), CW - Inches(0.68), Inches(0.38),
         "有給休暇を取得する日をカレンダーで選択します",
@@ -417,7 +480,7 @@ def _build_manual_pptx() -> io.BytesIO:
 
     # ── Slide 8 : STEP 6〜7 ──────────────────────────────
     sl = _slide(prs)
-    _chrome(sl, "STEP 6〜7　Excelファイルの選択・ダウンロード", 8, TOTAL)
+    _chrome(sl, "STEP 6〜7　Excelファイルの選択・ダウンロード", 9, TOTAL)
     _tb(sl, ML, CY + Inches(0.05), CW, Inches(0.28),
         "最後のステップです。ファイルを選んでボタンを押すだけで完了します",
         size=10, color=MUTED, italic=True)
@@ -452,7 +515,7 @@ def _build_manual_pptx() -> io.BytesIO:
 
     # ── Slide 9 : 自動入力ルール早見表 ──────────────────────
     sl = _slide(prs)
-    _chrome(sl, "自動入力ルール早見表", 9, TOTAL)
+    _chrome(sl, "自動入力ルール早見表", 10, TOTAL)
     _tb(sl, ML, CY + Inches(0.05), CW, Inches(0.28),
         "日の種類に応じて以下のルールで Excel へ自動入力されます",
         size=10, color=MUTED, italic=True)
@@ -512,20 +575,20 @@ def _build_manual_pptx() -> io.BytesIO:
 
     # ── Slide 10 : Q&A ──────────────────────────────────
     sl = _slide(prs)
-    _chrome(sl, "よくある疑問（Q&A）", 10, TOTAL)
+    _chrome(sl, "よくある疑問（Q&A）", 11, TOTAL)
     qas = [
-        ("Q1", "設定は毎月入力し直す必要がありますか？",
+        ("Q1", "AIアシスタントで何ができますか？",
+         "日本語の指示で「曜日別時間の変更」「有給取得日の設定」「例外日の追加」「対象月の変更」をすべて自動で行えます。例：「全部9時〜18時にして」「今月は15日に有給」など。"),
+        ("Q2", "設定は毎月入力し直す必要がありますか？",
          "不要です。曜日別の勤務時間・設定はブラウザに自動保存されます。次回起動時に前回の設定が自動で読み込まれます。"),
-        ("Q2", "休日出勤はどうやって入力しますか？",
-         "「＋ 例外日を追加」から対象日（土日・祝日も可）を選択し、出勤時間を入力します。例外日設定が最優先で反映されます。"),
-        ("Q3", "有給を土日・祝日に取得する場合は？",
-         "STEP 5のカレンダーで土日・祝日も選択できます。選択した日の備考欄に「私用により、休暇」が記入されます。"),
-        ("Q4", "ファイルを間違えて選択した場合は？",
+        ("Q3", "休日出勤はどうやって入力しますか？",
+         "「＋ 例外日を追加」から対象日（土日・祝日も可）を選択し、出勤時間を入力します。またはAIアシスタントに「20日は休日出勤で9〜18時」と指示するだけでOKです。"),
+        ("Q4", "有給を土日・祝日に取得する場合は？",
+         "STEP 5のカレンダーで土日・祝日も選択できます。またはAIアシスタントに「15日に有給を取る」と指示してください。"),
+        ("Q5", "ファイルを間違えて選択した場合は？",
          "ファイル名の右側の「✕」ボタンで選択をキャンセルできます。再度クリックして正しいファイルを選び直してください。"),
-        ("Q5", "Excelの列の位置が変わっても使えますか？",
+        ("Q6", "Excelの列の位置が変わっても使えますか？",
          "はい。アプリがヘッダー文字列を自動検索して対象列を特定するため、列の位置が変わっても正常に動作します。"),
-        ("Q6", "ダウンロードしたファイルはどこに保存される？",
-         "ブラウザの設定に従い、通常はダウンロードフォルダに保存されます。確認後、所定の場所へ移動してください。"),
     ]
     qa_h10 = CH / len(qas)
     for i, (qn_s, q, a) in enumerate(qas):

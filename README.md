@@ -7,6 +7,7 @@
 
 ## 主な機能
 
+- **AI アシスタント**：日本語で指示するだけで全設定を自動入力
 - 月〜金の開始・終了・休憩時間を曜日ごとに設定
 - 有給取得日をカレンダー UI で選択
 - 残業・早退・休日出勤など例外日を個別設定
@@ -36,17 +37,18 @@
 ### ウェブ版
 
 ```bash
-pip install flask flask-httpauth openpyxl jpholiday python-dotenv
+pip install flask flask-httpauth openpyxl jpholiday python-dotenv google-genai
 python app.py
 ```
 
 ブラウザで `http://localhost:5000/` を開く。  
-ログイン情報は `.env` ファイルで設定（デフォルト: `root` / `root`）。
+ログイン情報・API キーは `.env` ファイルで設定（デフォルト: `root` / `root`）。
 
 ```
 # .env
 APP_USERNAME=your_username
 APP_PASSWORD=your_password
+GEMINI_API_KEY=AIzaSy...   # AI アシスタントを使う場合に必要
 ```
 
 ### exe 版
@@ -61,6 +63,18 @@ Python・インストール作業は不要です。
 
 ## 操作手順
 
+### AI アシスタントを使う場合（推奨）
+画面上部の入力欄に日本語で指示するだけで自動設定されます。
+
+| 入力例 | 動作 |
+|---|---|
+| `全部9:00〜18:00にして` | 月〜金すべての時間を変更 |
+| `月曜だけ19:00終わりにして` | 特定曜日のみ変更 |
+| `今月は15日と20日に有給を取る` | 有給取得日を設定 |
+| `20日は残業で21:00まで` | 例外日を追加 |
+| `7月を9時〜17時半で入力して` | 対象月と時間を同時に設定 |
+
+### 手動で入力する場合
 1. 対象年月を確認（自動で当月が設定されます）
 2. 曜日別の勤務時間を入力
 3. 例外日があれば「＋ 例外日を追加」から設定
@@ -119,5 +133,6 @@ pyinstaller --onefile --windowed --name "DailyReportApp" daily_report_app.py
 | 種別 | 使用技術 |
 |---|---|
 | ウェブ版 | Python / Flask / openpyxl / jpholiday |
+| AI アシスタント | Google Gemini API（google-genai） |
 | exe 版 | Python / Tkinter / openpyxl / jpholiday / PyInstaller |
 | CI/CD | GitHub Actions |
