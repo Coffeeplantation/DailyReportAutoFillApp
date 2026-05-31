@@ -706,43 +706,70 @@ def ai_chat():
     if not message:
         return jsonify({'error': 'メッセージを入力してください'}), 400
 
-    current_times = data.get('current_times', {})
-    day_map = {
-        'monday': '月曜', 'tuesday': '火曜', 'wednesday': '水曜',
-        'thursday': '木曜', 'friday': '金曜',
-    }
-    settings_lines = '\n'.join(
-        f"{day_map[d]}: 開始={t.get('start','--')}, 終了={t.get('end','--')}, 休憩={t.get('break','--')}"
-        for d, t in current_times.items() if t
-    ) or '（未設定）'
+    # 現在の全設定を受け取る
+    year            = data.get('year', '')
+    month           = data.get('month', '')
+    weekday_times   = data.get('weekday_times', {})
+    paid_leave_days = data.get('paid_leave_days', [])
+    exceptions      = data.get('exceptions', [])
 
-    prompt = f"""あなたは勤務時間管理アシスタントです。
-ユーザーの指示に従い、曜日別勤務時間の変更内容をJSON形式で返してください。
+    day_map = {'monday':'月曜','tuesday':'火曜','wednesday':'水曜','thursday':'木曜','friday':'金曜'}
+
+    wt_lines = '\n'.join(
+        f"  {day_map[d]}: {t.get('start','--')}〜{t.get('end','--')} 休憩{t.get('break','--')}"
+        for d, t in weekday_times.items() if t
+    ) or '  （未設定）'
+
+    paid_desc = '、'.join(f"{d}日" for d in sorted(paid_leave_days)) if paid_leave_days else 'なし'
+
+    exc_lines = '\n'.join(
+        f"  {e.get('day')}日: {e.get('start','--')}〜{e.get('end','--')} 備考:{e.get('note','')}"
+        for e in exceptions
+    ) or 'なし'
+
+    prompt = f"""あなたは日報フォームの入力アシスタントです。
+ユーザーの日本語の指示を解析し、フォームの設定をJSON形式で返してください。
 
 ## 現在の設定
-{settings_lines}
+対象月: {year}年{month}月
+曜日別勤務時間:
+{wt_lines}
+有給取得日: {paid_desc}
+例外日（残業・早退・休日出勤）:
+{exc_lines}
 
 ## ユーザーの指示
 {message}
 
-## 返却形式（必ずこのJSONのみ返す）
+## 返却JSON（変更しない項目は必ずnullにする）
 {{
-  "changes": {{
-    "monday":    {{"start": "HH:MM", "end": "HH:MM", "break": "HH:MM"}} または null,
+  "year":  年の数字 | null,
+  "month": 月の数字 | null,
+  "weekday_times": {{
+    "monday":    {{"start":"HH:MM","end":"HH:MM","break":"HH:MM"}} | null,
     "tuesday":   null,
     "wednesday": null,
     "thursday":  null,
     "friday":    null
-  }},
-  "reply": "変更内容を日本語で1文"
+  }} | null,
+  "paid_leave": {{
+    "enabled": true,
+    "days": [日付の数字, ...]
+  }} | null,
+  "exceptions": [
+    {{"day": 日付の数字, "start": "HH:MM", "end": "HH:MM", "break": "HH:MM", "note": "備考文字列"}}
+  ] | null,
+  "reply": "実施内容を日本語で1〜2文で説明"
 }}
 
 ルール:
-- 変更しない曜日は null を返す
-- 時刻は24時間HH:MM形式（例: "09:00", "18:30"）
-- 「先月と同じ」「変更なし」はすべて null、reply で現在の設定を確認
-- 休憩時間が未指定なら現在の値か "01:00" を維持
-- 「全部○○にして」なら全曜日を変更"""
+- 時刻は24時間HH:MM形式（例:"09:00","18:30"）
+- weekday_timesがnullなら曜日時間は変更なし。各曜日もnullなら個別に変更なし
+- paid_leaveのdaysは変更後の完全なリスト（全置換）
+- exceptionsは変更後の完全なリスト（全置換）。時間変更のない日はstart/endを空文字にしてnoteだけ設定
+- 「先月と同じ」は weekday_times/paid_leave/exceptions をすべてnull。replyで現在の設定を読み上げる
+- 「全部〇〇にして」は全5曜日を変更
+- 休憩時間が未指定なら"01:00"を使用"""
 
     try:
         from google import genai

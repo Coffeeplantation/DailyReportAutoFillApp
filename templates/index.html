@@ -1151,6 +1151,116 @@
   function getMonth() { return parseInt(document.getElementById('monthInput').value) || {{ current_month }}; }
 
   // ── AI アシスタント ──────────────────────────────────────
+
+  // 現在のフォーム全設定を収集して返す
+  function collectCurrentState() {
+    const weekday_times = {};
+    ['monday','tuesday','wednesday','thursday','friday'].forEach(day => {
+      const s = document.querySelector(`[name="${day}_start"]`)?.value;
+      const e = document.querySelector(`[name="${day}_end"]`)?.value;
+      const b = document.querySelector(`[name="${day}_break"]`)?.value;
+      if (s && e) weekday_times[day] = { start: s, end: e, 'break': b || '01:00' };
+    });
+
+    const paid_leave_days = [...selectedDays].sort((a, b) => a - b);
+
+    // 時間例外と備考例外をマージ
+    const exTimeMap = {};
+    document.querySelectorAll('.time-exception-row').forEach(row => {
+      const day = row.querySelector('[name="time_ex_day"]')?.value;
+      if (!day) return;
+      exTimeMap[day] = {
+        day: parseInt(day),
+        start: row.querySelector('[name="time_ex_start"]')?.value || '',
+        end:   row.querySelector('[name="time_ex_end"]')?.value   || '',
+        'break': row.querySelector('[name="time_ex_break"]')?.value || '01:00',
+        note: '',
+      };
+    });
+    document.querySelectorAll('.exception-row').forEach(row => {
+      const day = row.querySelector('[name="exception_day"]')?.value;
+      if (!day) return;
+      const note = row.querySelector('[name="exception_note"]')?.value || '';
+      if (exTimeMap[day]) {
+        exTimeMap[day].note = note;
+      } else {
+        exTimeMap[day] = { day: parseInt(day), start: '', end: '', 'break': '01:00', note };
+      }
+    });
+    const exceptions = Object.values(exTimeMap);
+
+    return { weekday_times, paid_leave_days, exceptions };
+  }
+
+  // AI が返した変更をフォームに反映する
+  async function applyAiChanges(data) {
+    // 1. 対象年月
+    let monthChanged = false;
+    if (data.year)  { document.getElementById('yearInput').value  = data.year;  monthChanged = true; }
+    if (data.month) { document.getElementById('monthInput').value = data.month; monthChanged = true; }
+    if (monthChanged) {
+      holidays = {};
+      selectedDays.clear();
+      document.getElementById('paidLeaveDates').value = '';
+      await fetchHolidays();
+    }
+
+    // 2. 曜日別勤務時間
+    if (data.weekday_times) {
+      ['monday','tuesday','wednesday','thursday','friday'].forEach(day => {
+        const t = data.weekday_times[day];
+        if (!t) return;
+        const sEl = document.querySelector(`[name="${day}_start"]`);
+        const eEl = document.querySelector(`[name="${day}_end"]`);
+        const bEl = document.querySelector(`[name="${day}_break"]`);
+        if (t.start && sEl) sEl.value = t.start;
+        if (t.end   && eEl) eEl.value = t.end;
+        if (t.break && bEl) bEl.value = t.break;
+      });
+    }
+
+    // 3. 有給取得日
+    if (data.paid_leave != null) {
+      selectedDays.clear();
+      const cb        = document.getElementById('hasPaidLeave');
+      const container = document.getElementById('calendarContainer');
+      const days      = (data.paid_leave.days || []).map(Number);
+      if (data.paid_leave.enabled && days.length > 0) {
+        cb.checked = true;
+        if (!Object.keys(holidays).length) await fetchHolidays();
+        buildCalendar();
+        container.style.display = 'block';
+        days.forEach(day => {
+          selectedDays.add(day);
+          document.querySelector(`.cal-day[data-day="${day}"]`)?.classList.add('selected');
+        });
+      } else {
+        cb.checked = false;
+        container.style.display = 'none';
+      }
+      document.getElementById('paidLeaveDates').value =
+        [...selectedDays].sort((a, b) => a - b).join(',');
+    }
+
+    // 4. 例外日（時間・備考）
+    if (data.exceptions != null) {
+      document.getElementById('timeExceptionRows').innerHTML = '';
+      document.getElementById('exceptionRows').innerHTML     = '';
+      (data.exceptions || []).forEach(ex => {
+        const day = String(ex.day);
+        if (ex.start && ex.end) {
+          addTimeExceptionRow(day, ex.start, ex.end, ex.break || '01:00');
+        }
+        if (ex.note) {
+          addExceptionRow(day, ex.note);
+        }
+      });
+    }
+
+    refreshSummary();
+    saveSettings();
+  }
+
   async function sendAiMessage() {
     const input   = document.getElementById('aiInput');
     const sendBtn = document.getElementById('aiSendBtn');
@@ -1159,57 +1269,45 @@
     if (!message) { input.focus(); return; }
 
     sendBtn.textContent = '処理中…';
-    sendBtn.disabled = true;
-    replyEl.className = 'ai-reply loading';
+    sendBtn.disabled    = true;
+    replyEl.className   = 'ai-reply loading';
     replyEl.textContent = '🤖 考え中…';
     replyEl.style.display = 'block';
 
-    const current_times = {};
-    ['monday','tuesday','wednesday','thursday','friday'].forEach(day => {
-      const s = document.querySelector(`[name="${day}_start"]`)?.value;
-      const e = document.querySelector(`[name="${day}_end"]`)?.value;
-      const b = document.querySelector(`[name="${day}_break"]`)?.value;
-      if (s && e) current_times[day] = { start: s, end: e, 'break': b || '01:00' };
-    });
+    const { weekday_times, paid_leave_days, exceptions } = collectCurrentState();
 
     try {
       const res  = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message, current_times }),
+        body: JSON.stringify({
+          message,
+          year:  getYear(),
+          month: getMonth(),
+          weekday_times,
+          paid_leave_days,
+          exceptions,
+        }),
       });
       const data = await res.json();
 
       if (!res.ok) {
-        replyEl.className = 'ai-reply error';
+        replyEl.className   = 'ai-reply error';
         replyEl.textContent = '⚠ ' + (data.error || 'エラーが発生しました');
         return;
       }
 
-      let changed = false;
-      if (data.changes) {
-        Object.entries(data.changes).forEach(([day, times]) => {
-          if (!times) return;
-          const sEl = document.querySelector(`[name="${day}_start"]`);
-          const eEl = document.querySelector(`[name="${day}_end"]`);
-          const bEl = document.querySelector(`[name="${day}_break"]`);
-          if (times.start && sEl) { sEl.value = times.start; changed = true; }
-          if (times.end   && eEl) { eEl.value = times.end;   changed = true; }
-          if (times.break && bEl) { bEl.value = times.break; changed = true; }
-        });
-      }
-      if (changed) { refreshSummary(); saveSettings(); }
-
-      replyEl.className = 'ai-reply success';
+      await applyAiChanges(data);
+      replyEl.className   = 'ai-reply success';
       replyEl.textContent = '✅ ' + (data.reply || '完了しました');
       input.value = '';
 
     } catch (err) {
-      replyEl.className = 'ai-reply error';
+      replyEl.className   = 'ai-reply error';
       replyEl.textContent = '⚠ 通信エラー: ' + err.message;
     } finally {
       sendBtn.textContent = '送信';
-      sendBtn.disabled = false;
+      sendBtn.disabled    = false;
     }
   }
 
