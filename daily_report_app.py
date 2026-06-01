@@ -7,6 +7,7 @@ from datetime import date, time
 import calendar as cal_module
 import openpyxl
 from openpyxl.styles import Font
+from copy import copy
 import jpholiday
 
 WEEKDAY_NAMES = ['月曜日', '火曜日', '水曜日', '木曜日', '金曜日']
@@ -958,13 +959,24 @@ class DailyReportApp:
         ce = self._find_col(ws, hr, label_end)   or 'I'
         cb = self._find_col(ws, hr, label_break) or 'L'
         cn = self._find_col(ws, hr, label_note)  or 'S'
-        blk = Font(color='000000')
-
         for day in range(1, last + 1):
             r  = dr + day - 1
             wd = date(year, month, day).weekday()
 
-            for c in (cs, ce, cb, cn):
+            # 書き込み前に枠線・フォントを退避（原紙のフォント名/サイズ等を保持しつつ色だけ黒にする）
+            target_cols = (cs, ce, cb, cn)
+            saved_borders = {c: copy(ws[f'{c}{r}'].border) for c in target_cols}
+            saved_fonts = {}
+            for c in target_cols:
+                f = ws[f'{c}{r}'].font
+                saved_fonts[c] = Font(
+                    name=f.name, size=f.size, bold=f.bold, italic=f.italic,
+                    underline=f.underline, strike=f.strike, color='FF000000',
+                    charset=f.charset, family=f.family, scheme=f.scheme,
+                    vertAlign=f.vertAlign,
+                )
+
+            for c in target_cols:
                 ws[f'{c}{r}'].value = None
 
             if day in tex:
@@ -972,32 +984,36 @@ class DailyReportApp:
                 for c, v in ((cs, t['start']), (ce, t['end']), (cb, t['break'])):
                     ws[f'{c}{r}'].value         = v
                     ws[f'{c}{r}'].number_format = 'h:mm'
-                    ws[f'{c}{r}'].font          = blk
+                    ws[f'{c}{r}'].font          = saved_fonts[c]
                 note = t['note'] or (note_workday if same_note else nex.get(day, note_workday))
                 ws[f'{cn}{r}'].value = note
-                ws[f'{cn}{r}'].font  = blk
+                ws[f'{cn}{r}'].font  = saved_fonts[cn]
             elif day in paid:
                 ws[f'{cn}{r}'].value = '私用により、休暇'
-                ws[f'{cn}{r}'].font  = blk
+                ws[f'{cn}{r}'].font  = saved_fonts[cn]
             elif wd >= 5:
                 pass
             elif day in hols:
                 ws[f'{cn}{r}'].value = '祝日'
-                ws[f'{cn}{r}'].font  = blk
+                ws[f'{cn}{r}'].font  = saved_fonts[cn]
             elif wd in wt:
                 t = wt[wd]
                 for c, v in ((cs, t['start']), (ce, t['end']), (cb, t['break'])):
                     ws[f'{c}{r}'].value         = v
                     ws[f'{c}{r}'].number_format = 'h:mm'
-                    ws[f'{c}{r}'].font          = blk
+                    ws[f'{c}{r}'].font          = saved_fonts[c]
                 note = note_workday if same_note else nex.get(day, note_workday)
                 ws[f'{cn}{r}'].value = note
-                ws[f'{cn}{r}'].font  = blk
+                ws[f'{cn}{r}'].font  = saved_fonts[cn]
 
             # カレンダー上で手動編集した備考を最優先で上書き
             if day in self.manual_notes:
                 ws[f'{cn}{r}'].value = self.manual_notes[day]
-                ws[f'{cn}{r}'].font  = blk
+                ws[f'{cn}{r}'].font  = saved_fonts[cn]
+
+            # 退避した枠線を復元
+            for c in target_cols:
+                ws[f'{c}{r}'].border = saved_borders[c]
 
         try:
             ws.sheet_view.selection[0].activeCell = 'A1'
