@@ -193,21 +193,8 @@ def write_excel():
         row = DATA_START_ROW + (day - 1)
         weekday = date(year, month, day).weekday()  # 0=月, 6=日
 
-        # 書き込み前に枠線・フォントを退避（原紙のフォント名/サイズ等を保持しつつ色だけ黒にする）
-        target_cols = [col_start, col_end, col_break, col_note]
-        saved_borders = {col: copy(ws[f'{col}{row}'].border) for col in target_cols}
-        saved_fonts = {}
-        for col in target_cols:
-            f = ws[f'{col}{row}'].font
-            saved_fonts[col] = Font(
-                name=f.name, size=f.size, bold=f.bold, italic=f.italic,
-                underline=f.underline, strike=f.strike, color='FF000000',
-                charset=f.charset, family=f.family, scheme=f.scheme,
-                vertAlign=f.vertAlign,
-            )
-
-        # 対象セルをクリア
-        for col in target_cols:
+        # value のみのクリアはスタイル（枠線・フォント）に影響しない
+        for col in [col_start, col_end, col_break, col_note]:
             ws[f'{col}{row}'].value = None
 
         if day in time_exceptions:
@@ -218,21 +205,19 @@ def write_excel():
                 (col_end,   t['end'],   'h:mm'),
                 (col_break, t['break'], 'h:mm'),
             ]:
+                # number_format の変更だけ枠線を退避・復元する
+                bd = copy(ws[f'{col}{row}'].border)
                 ws[f'{col}{row}'].value = val
                 ws[f'{col}{row}'].number_format = fmt
-                ws[f'{col}{row}'].font = saved_fonts[col]
+                ws[f'{col}{row}'].border = bd
             ws[f'{col_note}{row}'].value = note_exceptions.get(day, note_workday)
-            ws[f'{col_note}{row}'].font = saved_fonts[col_note]
         elif day in paid_leave:
             ws[f'{col_note}{row}'].value = note_exceptions.get(day, '私用により、休暇')
-            ws[f'{col_note}{row}'].font = saved_fonts[col_note]
         elif weekday >= 5:
             if day in note_exceptions:
                 ws[f'{col_note}{row}'].value = note_exceptions[day]
-                ws[f'{col_note}{row}'].font = saved_fonts[col_note]
         elif day in holidays:
             ws[f'{col_note}{row}'].value = note_exceptions.get(day, '祝日')
-            ws[f'{col_note}{row}'].font = saved_fonts[col_note]
         elif weekday in weekday_times:
             t = weekday_times[weekday]
             for col, val, fmt in [
@@ -240,20 +225,15 @@ def write_excel():
                 (col_end,   t['end'],   'h:mm'),
                 (col_break, t['break'], 'h:mm'),
             ]:
+                bd = copy(ws[f'{col}{row}'].border)
                 ws[f'{col}{row}'].value = val
                 ws[f'{col}{row}'].number_format = fmt
-                ws[f'{col}{row}'].font = saved_fonts[col]
+                ws[f'{col}{row}'].border = bd
             ws[f'{col_note}{row}'].value = note_exceptions.get(day, note_workday)
-            ws[f'{col_note}{row}'].font = saved_fonts[col_note]
 
         # 月間スケジュール上の手動編集備考を最優先で上書き
         if day in manual_notes:
             ws[f'{col_note}{row}'].value = manual_notes[day] or None
-            ws[f'{col_note}{row}'].font = saved_fonts[col_note]
-
-        # 退避した枠線を復元
-        for col in target_cols:
-            ws[f'{col}{row}'].border = saved_borders[col]
 
     # カーソルをA1に設定
     try:
