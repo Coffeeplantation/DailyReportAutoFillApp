@@ -2,11 +2,160 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import json
 import sys
+import io
+import zipfile
+import re
 from pathlib import Path
 from datetime import date, time
 import calendar as cal_module
 import openpyxl
 import jpholiday
+
+# ── xl/styles.xml を変更せずセル値のみ書き換えるヘルパー ───────────────────
+try:
+    from lxml import etree as _ET
+except ImportError:
+    import xml.etree.ElementTree as _ET
+    for _p, _u in [
+        ('',     'http://schemas.openxmlformats.org/spreadsheetml/2006/main'),
+        ('r',    'http://schemas.openxmlformats.org/officeDocument/2006/relationships'),
+        ('mc',   'http://schemas.openxmlformats.org/markup-compatibility/2006'),
+        ('x14ac','http://schemas.microsoft.com/office/spreadsheetml/2009/9/ac'),
+        ('xr',   'http://schemas.microsoft.com/office/spreadsheetml/2014/revision'),
+        ('xr2',  'http://schemas.microsoft.com/office/spreadsheetml/2015/revision2'),
+        ('xr3',  'http://schemas.microsoft.com/office/spreadsheetml/2016/revision3'),
+    ]:
+        _ET.register_namespace(_p, _u)
+
+_SML = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main'
+_Q   = lambda tag: f'{{{_SML}}}{tag}'
+
+
+def _col_idx(col):
+    n = 0
+    for c in col.upper():
+        n = n * 26 + ord(c) - 64
+    return n
+
+
+def _time_serial(t):
+    return t.hour / 24.0 + t.minute / 1440.0 + t.second / 86400.0
+
+
+def _find_sheet_xml(zip_bytes, sheet_title):
+    """シートタイトル → xl/worksheets/sheetN.xml のパスを返す"""
+    try:
+        with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
+            wb_xml   = z.read('xl/workbook.xml').decode('utf-8', errors='replace')
+            rels_xml = z.read('xl/_rels/workbook.xml.rels').decode('utf-8', errors='replace')
+        for attrs in re.findall(r'<sheet\b([^>]+?)/>', wb_xml):
+            nm  = re.search(r'name="([^"]*)"', attrs)
+            rid = re.search(r'r:id="([^"]*)"', attrs)
+            if nm and rid and nm.group(1) == sheet_title:
+                tgt = re.search(
+                    rf'Id="{re.escape(rid.group(1))}"[^>]+Target="([^"]+)"', rels_xml)
+                if tgt:
+                    t = tgt.group(1)
+                    return 'xl/' + t if not t.startswith('/') else t.lstrip('/')
+    except Exception:
+        pass
+    return 'xl/worksheets/sheet1.xml'
+
+
+def _set_cell(cell_el, val):
+    """セルの値要素のみ書き換える（s 属性＝スタイルは変更しない）"""
+    for ch in list(cell_el):
+        cell_el.remove(ch)
+    if val is None:
+        cell_el.attrib.pop('t', None)
+    elif isinstance(val, time):
+        cell_el.attrib.pop('t', None)
+        v = _ET.SubElement(cell_el, _Q('v'))
+        v.text = repr(_time_serial(val))
+    else:
+        cell_el.set('t', 'inlineStr')
+        t_el = _ET.SubElement(_ET.SubElement(cell_el, _Q('is')), _Q('t'))
+        t_el.text = str(val)
+
+
+def _patch_sheet_xml(xml_bytes, cell_data):
+    """
+    sheet XML のセル値だけ変更する。xl/styles.xml は一切変更しない。
+    cell_data: {'F23': time(9,0), 'S23': '在宅勤務', 'F24': None, ...}
+    """
+    decl_m = re.match(rb'<\?xml[^?]*\?>', xml_bytes)
+    decl   = decl_m.group() if decl_m else b"<?xml version='1.0' encoding='UTF-8' standalone='yes'?>"
+
+    root = _ET.fromstring(xml_bytes)
+    sd   = root.find(_Q('sheetData'))
+    if sd is None:
+        return xml_bytes
+
+    # カーソルを A1 に設定
+    svs = root.find(_Q('sheetViews'))
+    if svs is not None:
+        for sv in svs.findall(_Q('sheetView')):
+            for sel in sv.findall(_Q('selection')):
+                sel.set('activeCell', 'A1')
+                sel.set('sqref', 'A1')
+
+    # 既存セルを更新
+    touched = set()
+    for row_el in sd:
+        for cell_el in list(row_el):
+            ref = cell_el.get('r', '')
+            if ref in cell_data:
+                _set_cell(cell_el, cell_data[ref])
+                touched.add(ref)
+
+    # 存在しないセルを追加（値がある場合のみ）
+    new_by_row = {}
+    for ref, val in cell_data.items():
+        if ref not in touched and val is not None:
+            rn = int(''.join(c for c in ref if c.isdigit()))
+            new_by_row.setdefault(rn, []).append(ref)
+
+    for rn in sorted(new_by_row):
+        row_el = next((r for r in sd if r.get('r') == str(rn)), None)
+        if row_el is None:
+            row_el = _ET.SubElement(sd, _Q('row'))
+            row_el.set('r', str(rn))
+        row_s = row_el.get('s')
+        for ref in sorted(new_by_row[rn],
+                          key=lambda r: _col_idx(''.join(c for c in r if c.isalpha()))):
+            cell_el = _ET.SubElement(row_el, _Q('c'))
+            cell_el.set('r', ref)
+            if row_s:
+                cell_el.set('s', row_s)
+            _set_cell(cell_el, cell_data[ref])
+
+    body = _ET.tostring(root, encoding='unicode').encode('utf-8')
+    return decl + b'\n' + body
+
+
+def _save_xlsx_direct(path, sheet_title, cell_data):
+    """
+    xl/styles.xml を一切変更せずにセル値のみ更新して上書き保存する。
+    openpyxl によるスタイル再構築を完全に回避するため枠線が保持される。
+    """
+    with open(path, 'rb') as f:
+        src = f.read()
+
+    sheet_xml = _find_sheet_xml(src, sheet_title)
+    out = io.BytesIO()
+
+    with zipfile.ZipFile(io.BytesIO(src), 'r') as zin:
+        with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as zout:
+            for info in zin.infolist():
+                data = zin.read(info.filename)
+                if info.filename == sheet_xml:
+                    data = _patch_sheet_xml(data, cell_data)
+                elif info.filename == 'xl/workbook.xml' and b'fullCalcOnLoad' not in data:
+                    data = data.replace(b'<calcPr ', b'<calcPr fullCalcOnLoad="1" ', 1)
+                zout.writestr(info, data)
+
+    with open(path, 'wb') as f:
+        f.write(out.getvalue())
 
 WEEKDAY_NAMES = ['月曜日', '火曜日', '水曜日', '木曜日', '金曜日']
 SETTINGS_FILE = (Path(sys.executable).parent if getattr(sys, 'frozen', False)
@@ -957,62 +1106,54 @@ class DailyReportApp:
         ce = self._find_col(ws, hr, label_end)   or 'I'
         cb = self._find_col(ws, hr, label_break) or 'L'
         cn = self._find_col(ws, hr, label_note)  or 'S'
+        sheet_title = ws.title
+        # openpyxl は分析のみに使用。wb.save() は呼ばない（スタイル再構築を回避）
 
-        # 時刻フォーマットは列単位で一括設定（セルXF変更ゼロ → 枠線を壊さない）
-        for col_letter in (cs, ce, cb):
-            ws.column_dimensions[col_letter].number_format = 'h:mm'
-
+        # セルデータを収集
+        cell_data = {}
         for day in range(1, last + 1):
             r  = dr + day - 1
             wd = date(year, month, day).weekday()
 
-            # value の書き込みはXFを変更しないため枠線・フォントに影響しない
             if day in tex:
                 t = tex[day]
-                ws[f'{cs}{r}'].value = t['start']
-                ws[f'{ce}{r}'].value = t['end']
-                ws[f'{cb}{r}'].value = t['break']
-                ws[f'{cn}{r}'].value = t['note'] or (note_workday if same_note else nex.get(day, note_workday))
+                cell_data[f'{cs}{r}'] = t['start']
+                cell_data[f'{ce}{r}'] = t['end']
+                cell_data[f'{cb}{r}'] = t['break']
+                cell_data[f'{cn}{r}'] = t['note'] or (note_workday if same_note else nex.get(day, note_workday))
             elif day in paid:
-                ws[f'{cs}{r}'].value = None
-                ws[f'{ce}{r}'].value = None
-                ws[f'{cb}{r}'].value = None
-                ws[f'{cn}{r}'].value = '私用により、休暇'
+                cell_data[f'{cs}{r}'] = None
+                cell_data[f'{ce}{r}'] = None
+                cell_data[f'{cb}{r}'] = None
+                cell_data[f'{cn}{r}'] = '私用により、休暇'
             elif wd >= 5:
-                ws[f'{cs}{r}'].value = None
-                ws[f'{ce}{r}'].value = None
-                ws[f'{cb}{r}'].value = None
-                ws[f'{cn}{r}'].value = None
+                cell_data[f'{cs}{r}'] = None
+                cell_data[f'{ce}{r}'] = None
+                cell_data[f'{cb}{r}'] = None
+                cell_data[f'{cn}{r}'] = None
             elif day in hols:
-                ws[f'{cs}{r}'].value = None
-                ws[f'{ce}{r}'].value = None
-                ws[f'{cb}{r}'].value = None
-                ws[f'{cn}{r}'].value = '祝日'
+                cell_data[f'{cs}{r}'] = None
+                cell_data[f'{ce}{r}'] = None
+                cell_data[f'{cb}{r}'] = None
+                cell_data[f'{cn}{r}'] = '祝日'
             elif wd in wt:
                 t = wt[wd]
-                ws[f'{cs}{r}'].value = t['start']
-                ws[f'{ce}{r}'].value = t['end']
-                ws[f'{cb}{r}'].value = t['break']
-                ws[f'{cn}{r}'].value = note_workday if same_note else nex.get(day, note_workday)
+                cell_data[f'{cs}{r}'] = t['start']
+                cell_data[f'{ce}{r}'] = t['end']
+                cell_data[f'{cb}{r}'] = t['break']
+                cell_data[f'{cn}{r}'] = note_workday if same_note else nex.get(day, note_workday)
             else:
-                ws[f'{cs}{r}'].value = None
-                ws[f'{ce}{r}'].value = None
-                ws[f'{cb}{r}'].value = None
-                ws[f'{cn}{r}'].value = None
+                cell_data[f'{cs}{r}'] = None
+                cell_data[f'{ce}{r}'] = None
+                cell_data[f'{cb}{r}'] = None
+                cell_data[f'{cn}{r}'] = None
 
-            # カレンダー上で手動編集した備考を最優先で上書き
             if day in self.manual_notes:
-                ws[f'{cn}{r}'].value = self.manual_notes[day]
+                cell_data[f'{cn}{r}'] = self.manual_notes[day]
 
+        # xl/styles.xml を変更せずセル値のみ直接書き込む（枠線完全保持）
         try:
-            ws.sheet_view.selection[0].activeCell = 'A1'
-            ws.sheet_view.selection[0].sqref      = 'A1'
-        except Exception:
-            pass
-
-        wb.calculation.fullCalcOnLoad = True
-        try:
-            wb.save(path)
+            _save_xlsx_direct(path, sheet_title, cell_data)
         except Exception as e:
             messagebox.showerror('エラー', f'保存に失敗しました。\nExcelが開かれていないか確認してください。\n{e}')
             return
