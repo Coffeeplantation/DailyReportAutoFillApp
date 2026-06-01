@@ -5,7 +5,6 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-from copy import copy
 import jpholiday
 from datetime import date, time
 import calendar
@@ -189,47 +188,48 @@ def write_excel():
     col_break = find_column(ws, HEADER_ROW, label_break) or 'L'
     col_note  = find_column(ws, HEADER_ROW, label_note)  or 'S'
 
+    # 時刻フォーマットは列単位で一括設定（セルXF変更ゼロ → 枠線を壊さない）
+    for col_letter in (col_start, col_end, col_break):
+        ws.column_dimensions[col_letter].number_format = 'h:mm'
+
     for day in range(1, last_day + 1):
         row = DATA_START_ROW + (day - 1)
         weekday = date(year, month, day).weekday()  # 0=月, 6=日
 
-        # value のみのクリアはスタイル（枠線・フォント）に影響しない
-        for col in [col_start, col_end, col_break, col_note]:
-            ws[f'{col}{row}'].value = None
-
+        # value の書き込みはXFを変更しないため枠線・フォントに影響しない
         if day in time_exceptions:
             # 時間例外が最優先（土日・祝日・有給より上書き可能）
             t = time_exceptions[day]
-            for col, val, fmt in [
-                (col_start, t['start'], 'h:mm'),
-                (col_end,   t['end'],   'h:mm'),
-                (col_break, t['break'], 'h:mm'),
-            ]:
-                # number_format の変更だけ枠線を退避・復元する
-                bd = copy(ws[f'{col}{row}'].border)
-                ws[f'{col}{row}'].value = val
-                ws[f'{col}{row}'].number_format = fmt
-                ws[f'{col}{row}'].border = bd
-            ws[f'{col_note}{row}'].value = note_exceptions.get(day, note_workday)
+            ws[f'{col_start}{row}'].value = t['start']
+            ws[f'{col_end}{row}'].value   = t['end']
+            ws[f'{col_break}{row}'].value = t['break']
+            ws[f'{col_note}{row}'].value  = note_exceptions.get(day, note_workday)
         elif day in paid_leave:
-            ws[f'{col_note}{row}'].value = note_exceptions.get(day, '私用により、休暇')
+            ws[f'{col_start}{row}'].value = None
+            ws[f'{col_end}{row}'].value   = None
+            ws[f'{col_break}{row}'].value = None
+            ws[f'{col_note}{row}'].value  = note_exceptions.get(day, '私用により、休暇')
         elif weekday >= 5:
-            if day in note_exceptions:
-                ws[f'{col_note}{row}'].value = note_exceptions[day]
+            ws[f'{col_start}{row}'].value = None
+            ws[f'{col_end}{row}'].value   = None
+            ws[f'{col_break}{row}'].value = None
+            ws[f'{col_note}{row}'].value  = note_exceptions.get(day) if day in note_exceptions else None
         elif day in holidays:
-            ws[f'{col_note}{row}'].value = note_exceptions.get(day, '祝日')
+            ws[f'{col_start}{row}'].value = None
+            ws[f'{col_end}{row}'].value   = None
+            ws[f'{col_break}{row}'].value = None
+            ws[f'{col_note}{row}'].value  = note_exceptions.get(day, '祝日')
         elif weekday in weekday_times:
             t = weekday_times[weekday]
-            for col, val, fmt in [
-                (col_start, t['start'], 'h:mm'),
-                (col_end,   t['end'],   'h:mm'),
-                (col_break, t['break'], 'h:mm'),
-            ]:
-                bd = copy(ws[f'{col}{row}'].border)
-                ws[f'{col}{row}'].value = val
-                ws[f'{col}{row}'].number_format = fmt
-                ws[f'{col}{row}'].border = bd
-            ws[f'{col_note}{row}'].value = note_exceptions.get(day, note_workday)
+            ws[f'{col_start}{row}'].value = t['start']
+            ws[f'{col_end}{row}'].value   = t['end']
+            ws[f'{col_break}{row}'].value = t['break']
+            ws[f'{col_note}{row}'].value  = note_exceptions.get(day, note_workday)
+        else:
+            ws[f'{col_start}{row}'].value = None
+            ws[f'{col_end}{row}'].value   = None
+            ws[f'{col_break}{row}'].value = None
+            ws[f'{col_note}{row}'].value  = None
 
         # 月間スケジュール上の手動編集備考を最優先で上書き
         if day in manual_notes:

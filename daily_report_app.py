@@ -6,7 +6,6 @@ from pathlib import Path
 from datetime import date, time
 import calendar as cal_module
 import openpyxl
-from copy import copy
 import jpholiday
 
 WEEKDAY_NAMES = ['月曜日', '火曜日', '水曜日', '木曜日', '金曜日']
@@ -958,39 +957,48 @@ class DailyReportApp:
         ce = self._find_col(ws, hr, label_end)   or 'I'
         cb = self._find_col(ws, hr, label_break) or 'L'
         cn = self._find_col(ws, hr, label_note)  or 'S'
+
+        # 時刻フォーマットは列単位で一括設定（セルXF変更ゼロ → 枠線を壊さない）
+        for col_letter in (cs, ce, cb):
+            ws.column_dimensions[col_letter].number_format = 'h:mm'
+
         for day in range(1, last + 1):
             r  = dr + day - 1
             wd = date(year, month, day).weekday()
 
-            # value のみのクリアはスタイル（枠線・フォント）に影響しない
-            for c in (cs, ce, cb, cn):
-                ws[f'{c}{r}'].value = None
-
+            # value の書き込みはXFを変更しないため枠線・フォントに影響しない
             if day in tex:
                 t = tex[day]
-                for c, v in ((cs, t['start']), (ce, t['end']), (cb, t['break'])):
-                    # number_format の変更だけ枠線を退避・復元する
-                    bd = copy(ws[f'{c}{r}'].border)
-                    ws[f'{c}{r}'].value         = v
-                    ws[f'{c}{r}'].number_format = 'h:mm'
-                    ws[f'{c}{r}'].border        = bd
-                note = t['note'] or (note_workday if same_note else nex.get(day, note_workday))
-                ws[f'{cn}{r}'].value = note
+                ws[f'{cs}{r}'].value = t['start']
+                ws[f'{ce}{r}'].value = t['end']
+                ws[f'{cb}{r}'].value = t['break']
+                ws[f'{cn}{r}'].value = t['note'] or (note_workday if same_note else nex.get(day, note_workday))
             elif day in paid:
+                ws[f'{cs}{r}'].value = None
+                ws[f'{ce}{r}'].value = None
+                ws[f'{cb}{r}'].value = None
                 ws[f'{cn}{r}'].value = '私用により、休暇'
             elif wd >= 5:
-                pass
+                ws[f'{cs}{r}'].value = None
+                ws[f'{ce}{r}'].value = None
+                ws[f'{cb}{r}'].value = None
+                ws[f'{cn}{r}'].value = None
             elif day in hols:
+                ws[f'{cs}{r}'].value = None
+                ws[f'{ce}{r}'].value = None
+                ws[f'{cb}{r}'].value = None
                 ws[f'{cn}{r}'].value = '祝日'
             elif wd in wt:
                 t = wt[wd]
-                for c, v in ((cs, t['start']), (ce, t['end']), (cb, t['break'])):
-                    bd = copy(ws[f'{c}{r}'].border)
-                    ws[f'{c}{r}'].value         = v
-                    ws[f'{c}{r}'].number_format = 'h:mm'
-                    ws[f'{c}{r}'].border        = bd
-                note = note_workday if same_note else nex.get(day, note_workday)
-                ws[f'{cn}{r}'].value = note
+                ws[f'{cs}{r}'].value = t['start']
+                ws[f'{ce}{r}'].value = t['end']
+                ws[f'{cb}{r}'].value = t['break']
+                ws[f'{cn}{r}'].value = note_workday if same_note else nex.get(day, note_workday)
+            else:
+                ws[f'{cs}{r}'].value = None
+                ws[f'{ce}{r}'].value = None
+                ws[f'{cb}{r}'].value = None
+                ws[f'{cn}{r}'].value = None
 
             # カレンダー上で手動編集した備考を最優先で上書き
             if day in self.manual_notes:
