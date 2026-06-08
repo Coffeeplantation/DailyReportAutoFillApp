@@ -28,16 +28,16 @@ jobs:
       - name: ドキュメント（Excel）生成
         run: python generate_docs.py
 
+      - name: LibreOffice をインストール（PPTX→PDF変換用）
+        run: choco install libreoffice-fresh --no-progress -y
+
       - name: setup_guide.pptx を PDF に変換
         shell: pwsh
         run: |
-          $pptx = Resolve-Path "dist_docs\setup_guide.pptx"
-          $pdf  = [System.IO.Path]::ChangeExtension($pptx, "pdf")
-          $ppt  = New-Object -ComObject PowerPoint.Application
-          $pres = $ppt.Presentations.Open($pptx.Path, $true, $false, $false)
-          $pres.SaveAs($pdf, 32)
-          $pres.Close()
-          $ppt.Quit()
+          $pptx   = (Resolve-Path "dist_docs\setup_guide.pptx").Path
+          $outdir = (Resolve-Path "dist_docs").Path
+          & "C:\Program Files\LibreOffice\program\soffice.exe" --headless --convert-to pdf --outdir $outdir $pptx
+          if (-not (Test-Path "dist_docs\setup_guide.pdf")) { throw "PDF変換に失敗しました" }
 
       - name: 成果物をアップロード
         uses: actions/upload-artifact@v4
