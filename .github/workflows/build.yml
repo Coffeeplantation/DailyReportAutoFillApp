@@ -6,7 +6,36 @@ on:
   workflow_dispatch:
 
 jobs:
+  convert-pdf:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python セットアップ
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 依存パッケージのインストール
+        run: pip install python-pptx
+
+      - name: ドキュメント生成
+        run: python generate_docs.py
+
+      - name: LibreOffice インストール
+        run: sudo apt-get install -y libreoffice
+
+      - name: setup_guide.pptx を PDF に変換
+        run: libreoffice --headless --convert-to pdf --outdir dist_docs dist_docs/setup_guide.pptx
+
+      - name: PDF をアーティファクトに保存
+        uses: actions/upload-artifact@v4
+        with:
+          name: pdf-setup-guide
+          path: dist_docs/setup_guide.pdf
+
   build:
+    needs: convert-pdf
     runs-on: windows-latest
     permissions:
       contents: write
@@ -28,16 +57,11 @@ jobs:
       - name: ドキュメント（Excel）生成
         run: python generate_docs.py
 
-      - name: LibreOffice をインストール（PPTX→PDF変換用）
-        run: choco install libreoffice-fresh --no-progress -y
-
-      - name: setup_guide.pptx を PDF に変換
-        shell: pwsh
-        run: |
-          $pptx   = (Resolve-Path "dist_docs\setup_guide.pptx").Path
-          $outdir = (Resolve-Path "dist_docs").Path
-          & "C:\Program Files\LibreOffice\program\soffice.exe" --headless --convert-to pdf --outdir $outdir $pptx
-          if (-not (Test-Path "dist_docs\setup_guide.pdf")) { throw "PDF変換に失敗しました" }
+      - name: PDF アーティファクトをダウンロード
+        uses: actions/download-artifact@v4
+        with:
+          name: pdf-setup-guide
+          path: dist_docs/
 
       - name: 成果物をアップロード
         uses: actions/upload-artifact@v4
