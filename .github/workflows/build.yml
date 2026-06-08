@@ -28,6 +28,17 @@ jobs:
       - name: ドキュメント（Excel）生成
         run: python generate_docs.py
 
+      - name: setup_guide.pptx を PDF に変換
+        shell: pwsh
+        run: |
+          $pptx = Resolve-Path "dist_docs\setup_guide.pptx"
+          $pdf  = [System.IO.Path]::ChangeExtension($pptx, "pdf")
+          $ppt  = New-Object -ComObject PowerPoint.Application
+          $pres = $ppt.Presentations.Open($pptx.Path, $true, $false, $false)
+          $pres.SaveAs($pdf, 32)
+          $pres.Close()
+          $ppt.Quit()
+
       - name: 成果物をアップロード
         uses: actions/upload-artifact@v4
         with:
@@ -45,4 +56,5 @@ jobs:
             dist_docs/manual.pptx
             dist_docs/report.pptx
             dist_docs/setup_guide.pptx
+            dist_docs/setup_guide.pdf
           make_latest: true
